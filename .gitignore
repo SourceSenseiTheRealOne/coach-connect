@@ -12,6 +12,16 @@ dist
 dist-ssr
 *.local
 
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Claude/AI files
+CLAUDE.md
+claude_docs/
+memory-bank/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
