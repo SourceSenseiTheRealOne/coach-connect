@@ -1,211 +1,88 @@
 import { z } from 'zod';
-import { router, publicProcedure, protectedProcedure, clubProcedure } from '../trpc';
-import {
-    updateProfileSchema,
-    createClubProfileSchema,
-    updateClubProfileSchema,
-    addClubMemberSchema,
-    uuidSchema,
-} from '../../shared/validators';
+import { router, publicProcedure, protectedProcedure } from '../trpc';
 import { TRPCError } from '@trpc/server';
-import type { Profile, ClubProfile, ClubMember } from '../../shared/types';
-
-// Placeholder database functions (to be implemented with Supabase)
-const db = {
-    getProfileById: async (id: string): Promise<Profile | null> => {
-        console.log('getProfileById:', { id });
-        return null;
-    },
-    getProfileByUsername: async (username: string): Promise<Profile | null> => {
-        console.log('getProfileByUsername:', { username });
-        return null;
-    },
-    updateProfile: async (id: string, data: Partial<Profile>): Promise<Profile> => {
-        console.log('updateProfile:', { id, data });
-        return { ...data, id } as Profile;
-    },
-    incrementProfileViews: async (id: string): Promise<void> => {
-        console.log('incrementProfileViews:', { id });
-    },
-    getClubProfile: async (id: string): Promise<ClubProfile | null> => {
-        console.log('getClubProfile:', { id });
-        return null;
-    },
-    createClubProfile: async (data: Partial<ClubProfile>): Promise<ClubProfile> => {
-        console.log('createClubProfile:', { data });
-        return { ...data, id: 'mock-id' } as ClubProfile;
-    },
-    updateClubProfile: async (id: string, data: Partial<ClubProfile>): Promise<ClubProfile> => {
-        console.log('updateClubProfile:', { id, data });
-        return { ...data, id } as ClubProfile;
-    },
-    getClubMembers: async (clubId: string): Promise<(ClubMember & { profile: Profile })[]> => {
-        console.log('getClubMembers:', { clubId });
-        return [];
-    },
-    addClubMember: async (data: Partial<ClubMember>): Promise<ClubMember> => {
-        console.log('addClubMember:', { data });
-        return { ...data, id: 'mock-id' } as ClubMember;
-    },
-    removeClubMember: async (clubId: string, userId: string): Promise<void> => {
-        console.log('removeClubMember:', { clubId, userId });
-    },
-};
+import { profiles, connections } from '../db';
+import { uuidSchema, updateProfileSchema, updateClubProfileSchema } from '../../shared/validators';
 
 export const profileRouter = router({
     // Get profile by ID
     getById: publicProcedure
         .input(uuidSchema)
         .query(async ({ input }) => {
-            const profile = await db.getProfileById(input);
-
+            const profile = await profiles.getById(input);
             if (!profile) {
-                throw new TRPCError({
-                    code: 'NOT_FOUND',
-                    message: 'Profile not found',
-                });
+                throw new TRPCError({ code: 'NOT_FOUND', message: 'Profile not found' });
             }
-
-            // Increment view count
-            await db.incrementProfileViews(input);
-
             return profile;
         }),
 
     // Get profile by username
     getByUsername: publicProcedure
-        .input(z.string())
+        .input(z.string().min(1))
         .query(async ({ input }) => {
-            const profile = await db.getProfileByUsername(input);
-
+            const profile = await profiles.getByUsername(input);
             if (!profile) {
-                throw new TRPCError({
-                    code: 'NOT_FOUND',
-                    message: 'Profile not found',
-                });
+                throw new TRPCError({ code: 'NOT_FOUND', message: 'Profile not found' });
             }
-
             return profile;
-        }),
-
-    // Get own profile
-    getMe: protectedProcedure
-        .query(async ({ ctx }) => {
-            return ctx.profile;
         }),
 
     // Update own profile
     update: protectedProcedure
         .input(updateProfileSchema)
         .mutation(async ({ ctx, input }) => {
-            if (!ctx.profile) {
-                throw new TRPCError({
-                    code: 'NOT_FOUND',
-                    message: 'Profile not found',
-                });
+            const profile = await profiles.update(ctx.user!.id, input);
+            if (!profile) {
+                throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to update profile' });
             }
-
-            const updatedProfile = await db.updateProfile(ctx.profile.id, input);
-            return updatedProfile;
-        }),
-
-    // Increment profile views
-    incrementViews: publicProcedure
-        .input(uuidSchema)
-        .mutation(async ({ input }) => {
-            await db.incrementProfileViews(input);
-            return { success: true };
-        }),
-
-    // Get club profile
-    getClubProfile: publicProcedure
-        .input(uuidSchema)
-        .query(async ({ input }) => {
-            const clubProfile = await db.getClubProfile(input);
-
-            if (!clubProfile) {
-                throw new TRPCError({
-                    code: 'NOT_FOUND',
-                    message: 'Club profile not found',
-                });
-            }
-
-            return clubProfile;
-        }),
-
-    // Create club profile
-    createClubProfile: protectedProcedure
-        .input(createClubProfileSchema)
-        .mutation(async ({ ctx, input }) => {
-            if (ctx.profile?.user_type !== 'club') {
-                throw new TRPCError({
-                    code: 'FORBIDDEN',
-                    message: 'Only club accounts can create club profiles',
-                });
-            }
-
-            const clubProfile = await db.createClubProfile({
-                ...input,
-                id: ctx.profile.id,
-            });
-
-            return clubProfile;
+            return profile;
         }),
 
     // Update club profile
-    updateClubProfile: clubProcedure
+    updateClubProfile: protectedProcedure
         .input(updateClubProfileSchema)
         .mutation(async ({ ctx, input }) => {
-            if (!ctx.profile) {
-                throw new TRPCError({
-                    code: 'NOT_FOUND',
-                    message: 'Profile not found',
-                });
+            // Check if user is a club
+            const currentProfile = await profiles.getById(ctx.user!.id);
+            if (!currentProfile || currentProfile.user_type !== 'club') {
+                throw new TRPCError({ code: 'FORBIDDEN', message: 'Only club accounts can update club profiles' });
             }
 
-            const clubProfile = await db.updateClubProfile(ctx.profile.id, input);
-            return clubProfile;
+            const profile = await profiles.update(ctx.user!.id, input as Partial<import('../../shared/types').Profile>);
+            if (!profile) {
+                throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to update club profile' });
+            }
+            return profile;
         }),
 
-    // Get club members
-    getClubMembers: publicProcedure
+    // Search profiles
+    search: publicProcedure
+        .input(z.object({ query: z.string().min(1), limit: z.number().min(1).max(50).optional() }))
+        .query(async ({ input }) => {
+            return profiles.search(input.query, input.limit || 20);
+        }),
+
+    // Get current user's profile
+    me: protectedProcedure
+        .query(async ({ ctx }) => {
+            const profile = await profiles.getById(ctx.user!.id);
+            if (!profile) {
+                throw new TRPCError({ code: 'NOT_FOUND', message: 'Profile not found' });
+            }
+            return profile;
+        }),
+
+    // Get follow counts
+    getFollowCounts: publicProcedure
         .input(uuidSchema)
         .query(async ({ input }) => {
-            const members = await db.getClubMembers(input);
-            return members;
+            return connections.getFollowCounts(input);
         }),
 
-    // Add club member
-    addClubMember: clubProcedure
-        .input(addClubMemberSchema)
-        .mutation(async ({ ctx, input }) => {
-            if (!ctx.profile) {
-                throw new TRPCError({
-                    code: 'NOT_FOUND',
-                    message: 'Profile not found',
-                });
-            }
-
-            const member = await db.addClubMember({
-                ...input,
-                club_id: ctx.profile.id,
-            });
-
-            return member;
-        }),
-
-    // Remove club member
-    removeClubMember: clubProcedure
-        .input(addClubMemberSchema.pick({ user_id: true }))
-        .mutation(async ({ ctx, input }) => {
-            if (!ctx.profile) {
-                throw new TRPCError({
-                    code: 'NOT_FOUND',
-                    message: 'Profile not found',
-                });
-            }
-
-            await db.removeClubMember(ctx.profile.id, input.user_id);
-            return { success: true };
+    // Check if following
+    isFollowing: protectedProcedure
+        .input(uuidSchema)
+        .query(async ({ ctx, input }) => {
+            return connections.isFollowing(ctx.user!.id, input);
         }),
 });

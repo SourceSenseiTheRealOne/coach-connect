@@ -1,136 +1,119 @@
-import { z } from 'zod';
 import { router, publicProcedure, protectedProcedure } from '../trpc';
-import { uuidSchema } from '../../shared/validators';
 import { TRPCError } from '@trpc/server';
-import type { MarketplaceListing, MarketplaceReview, PaginatedResponse } from '../../shared/types';
-
-const db = {
-    listListings: async (params: { page?: number; pageSize?: number; service_type?: string }): Promise<PaginatedResponse<MarketplaceListing>> => {
-        console.log('listListings:', params);
-        return { items: [], total: 0, page: 1, pageSize: 20, totalPages: 0 };
-    },
-    getListingById: async (id: string): Promise<MarketplaceListing | null> => {
-        console.log('getListingById:', { id });
-        return null;
-    },
-    createListing: async (data: Partial<MarketplaceListing>): Promise<MarketplaceListing> => {
-        console.log('createListing:', { data });
-        return { ...data, id: 'mock-id' } as MarketplaceListing;
-    },
-    updateListing: async (id: string, data: Partial<MarketplaceListing>): Promise<MarketplaceListing> => {
-        console.log('updateListing:', { id, data });
-        return { ...data, id } as MarketplaceListing;
-    },
-    deleteListing: async (id: string): Promise<void> => {
-        console.log('deleteListing:', { id });
-    },
-    getReviews: async (listingId: string): Promise<MarketplaceReview[]> => {
-        console.log('getReviews:', { listingId });
-        return [];
-    },
-    createReview: async (data: Partial<MarketplaceReview>): Promise<MarketplaceReview> => {
-        console.log('createReview:', { data });
-        return { ...data, id: 'mock-id' } as MarketplaceReview;
-    },
-    getMyListings: async (sellerId: string): Promise<MarketplaceListing[]> => {
-        console.log('getMyListings:', { sellerId });
-        return [];
-    },
-};
-
-const createListingSchema = z.object({
-    title: z.string().min(1).max(255),
-    description: z.string().min(1),
-    service_type: z.enum(['private_training', 'video_analysis', 'consulting', 'scouting', 'event_organizing', 'equipment', 'other']),
-    price_cents: z.number().min(0).optional(),
-    price_type: z.enum(['fixed', 'hourly', 'per_session', 'contact']).optional(),
-    currency: z.string().default('EUR'),
-    images: z.array(z.string()).optional(),
-    service_area: z.string().optional(),
-    is_remote: z.boolean().default(false),
-});
+import { marketplace } from '../db';
+import {
+    uuidSchema,
+    listMarketplaceSchema,
+    createMarketplaceListingSchema,
+    updateMarketplaceListingSchema,
+    createMarketplaceReviewSchema,
+} from '../../shared/validators';
 
 export const marketplaceRouter = router({
-    // List marketplace listings
+    // List listings
     list: publicProcedure
-        .input(z.object({ page: z.number().min(1).default(1), pageSize: z.number().min(1).max(100).default(20), service_type: z.string().optional() }))
+        .input(listMarketplaceSchema)
         .query(async ({ input }) => {
-            return db.listListings(input);
+            return marketplace.list({
+                ...input,
+                page: input.page ?? 1,
+                pageSize: input.pageSize ?? 20,
+            });
         }),
 
-    // Get listing by ID
+    // Get by ID
     getById: publicProcedure
         .input(uuidSchema)
         .query(async ({ input }) => {
-            const listing = await db.getListingById(input);
+            const listing = await marketplace.getById(input);
             if (!listing) {
                 throw new TRPCError({ code: 'NOT_FOUND', message: 'Listing not found' });
             }
             return listing;
         }),
 
-    // Create listing
+    // Get by seller
+    getBySeller: publicProcedure
+        .input(uuidSchema)
+        .query(async ({ input }) => {
+            return marketplace.getBySeller(input);
+        }),
+
+    // Create
     create: protectedProcedure
-        .input(createListingSchema)
+        .input(createMarketplaceListingSchema)
         .mutation(async ({ ctx, input }) => {
-            return db.createListing({
+            const listing = await marketplace.create({
                 ...input,
                 seller_id: ctx.user!.id,
                 is_active: true,
                 is_featured: false,
                 views_count: 0,
-            } as Partial<MarketplaceListing>);
+                images: input.images ?? [],
+            });
+            if (!listing) {
+                throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to create listing' });
+            }
+            return listing;
         }),
 
-    // Update listing
+    // Update
     update: protectedProcedure
-        .input(z.object({ id: uuidSchema, data: createListingSchema.partial() }))
+        .input(updateMarketplaceListingSchema.extend({ id: uuidSchema }))
         .mutation(async ({ ctx, input }) => {
-            const listing = await db.getListingById(input.id);
-            if (!listing) {
+            const { id, ...updates } = input;
+
+            const existing = await marketplace.getById(id);
+            if (!existing) {
                 throw new TRPCError({ code: 'NOT_FOUND', message: 'Listing not found' });
             }
-            if (listing.seller_id !== ctx.user!.id) {
-                throw new TRPCError({ code: 'FORBIDDEN', message: 'Access denied' });
+            if (existing.seller_id !== ctx.user!.id) {
+                throw new TRPCError({ code: 'FORBIDDEN', message: 'You can only edit your own listings' });
             }
-            return db.updateListing(input.id, input.data as Partial<MarketplaceListing>);
+
+            const listing = await marketplace.update(id, updates);
+            if (!listing) {
+                throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to update listing' });
+            }
+            return listing;
         }),
 
-    // Delete listing
+    // Delete
     delete: protectedProcedure
         .input(uuidSchema)
         .mutation(async ({ ctx, input }) => {
-            const listing = await db.getListingById(input);
-            if (!listing) {
+            const existing = await marketplace.getById(input);
+            if (!existing) {
                 throw new TRPCError({ code: 'NOT_FOUND', message: 'Listing not found' });
             }
-            if (listing.seller_id !== ctx.user!.id) {
-                throw new TRPCError({ code: 'FORBIDDEN', message: 'Access denied' });
+            if (existing.seller_id !== ctx.user!.id) {
+                throw new TRPCError({ code: 'FORBIDDEN', message: 'You can only delete your own listings' });
             }
-            await db.deleteListing(input);
+
+            const success = await marketplace.delete(input);
+            if (!success) {
+                throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to delete listing' });
+            }
             return { success: true };
         }),
 
-    // Get reviews for listing
+    // Reviews
     getReviews: publicProcedure
         .input(uuidSchema)
         .query(async ({ input }) => {
-            return db.getReviews(input);
+            return marketplace.getReviews(input);
         }),
 
-    // Add review
-    addReview: protectedProcedure
-        .input(z.object({ listing_id: uuidSchema, rating: z.number().min(1).max(5), comment: z.string().optional() }))
+    createReview: protectedProcedure
+        .input(createMarketplaceReviewSchema)
         .mutation(async ({ ctx, input }) => {
-            return db.createReview({
+            const review = await marketplace.createReview({
                 ...input,
                 reviewer_id: ctx.user!.id,
             });
-        }),
-
-    // Get my listings
-    getMyListings: protectedProcedure
-        .query(async ({ ctx }) => {
-            return db.getMyListings(ctx.user!.id);
+            if (!review) {
+                throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to create review' });
+            }
+            return review;
         }),
 });

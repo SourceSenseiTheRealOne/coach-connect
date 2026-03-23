@@ -1,84 +1,46 @@
-import { z } from 'zod';
 import { router, publicProcedure, protectedProcedure } from '../trpc';
-import { uuidSchema } from '../../shared/validators';
 import { TRPCError } from '@trpc/server';
-import type { ForumCategory, ForumThread, ForumReply, PaginatedResponse } from '../../shared/types';
-
-const db = {
-    getCategories: async (): Promise<ForumCategory[]> => {
-        console.log('getCategories');
-        return [];
-    },
-    getThreads: async (categoryId: string, page: number, pageSize: number): Promise<ForumThread[]> => {
-        console.log('getThreads:', { categoryId, page, pageSize });
-        return [];
-    },
-    getThreadById: async (id: string): Promise<ForumThread | null> => {
-        console.log('getThreadById:', { id });
-        return null;
-    },
-    createThread: async (data: Partial<ForumThread>): Promise<ForumThread> => {
-        console.log('createThread:', { data });
-        return { ...data, id: 'mock-id' } as ForumThread;
-    },
-    updateThread: async (id: string, data: Partial<ForumThread>): Promise<ForumThread> => {
-        console.log('updateThread:', { id, data });
-        return { ...data, id } as ForumThread;
-    },
-    deleteThread: async (id: string): Promise<void> => {
-        console.log('deleteThread:', { id });
-    },
-    getReplies: async (threadId: string, page: number, pageSize: number): Promise<ForumReply[]> => {
-        console.log('getReplies:', { threadId, page, pageSize });
-        return [];
-    },
-    createReply: async (data: Partial<ForumReply>): Promise<ForumReply> => {
-        console.log('createReply:', { data });
-        return { ...data, id: 'mock-id' } as ForumReply;
-    },
-    deleteReply: async (id: string): Promise<void> => {
-        console.log('deleteReply:', { id });
-    },
-    incrementThreadViews: async (id: string): Promise<void> => {
-        console.log('incrementThreadViews:', { id });
-    },
-};
+import { forum } from '../db';
+import {
+    uuidSchema,
+    listThreadsSchema,
+    createForumThreadSchema,
+    createForumReplySchema,
+    moderateThreadSchema,
+} from '../../shared/validators';
 
 export const forumRouter = router({
-    // Get all categories
+    // Categories
     getCategories: publicProcedure
         .query(async () => {
-            return db.getCategories();
+            return forum.getCategories();
         }),
 
-    // Get threads by category
-    getThreads: publicProcedure
-        .input(z.object({ categoryId: uuidSchema, page: z.number().min(1).default(1), pageSize: z.number().min(1).max(100).default(20) }))
+    // Threads
+    listThreads: publicProcedure
+        .input(listThreadsSchema)
         .query(async ({ input }) => {
-            return db.getThreads(input.categoryId, input.page, input.pageSize);
+            return forum.getThreads({
+                ...input,
+                page: input.page ?? 1,
+                pageSize: input.pageSize ?? 20,
+            });
         }),
 
-    // Get thread by ID
-    getThread: publicProcedure
+    getThreadById: publicProcedure
         .input(uuidSchema)
         .query(async ({ input }) => {
-            const thread = await db.getThreadById(input);
+            const thread = await forum.getThreadById(input);
             if (!thread) {
                 throw new TRPCError({ code: 'NOT_FOUND', message: 'Thread not found' });
             }
-            await db.incrementThreadViews(input);
             return thread;
         }),
 
-    // Create thread
     createThread: protectedProcedure
-        .input(z.object({
-            category_id: uuidSchema,
-            title: z.string().min(1).max(255),
-            content: z.string().min(1),
-        }))
+        .input(createForumThreadSchema)
         .mutation(async ({ ctx, input }) => {
-            return db.createThread({
+            const thread = await forum.createThread({
                 ...input,
                 author_id: ctx.user!.id,
                 is_pinned: false,
@@ -86,55 +48,60 @@ export const forumRouter = router({
                 views_count: 0,
                 replies_count: 0,
             });
+            if (!thread) {
+                throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to create thread' });
+            }
+            return thread;
         }),
 
-    // Update thread
     updateThread: protectedProcedure
-        .input(z.object({ id: uuidSchema, title: z.string().min(1).max(255).optional(), content: z.string().min(1).optional() }))
+        .input(createForumThreadSchema.extend({ id: uuidSchema }))
         .mutation(async ({ ctx, input }) => {
-            const thread = await db.getThreadById(input.id);
-            if (!thread || thread.author_id !== ctx.user!.id) {
-                throw new TRPCError({ code: 'FORBIDDEN', message: 'Access denied' });
+            const { id, ...updates } = input;
+
+            const existing = await forum.getThreadById(id);
+            if (!existing) {
+                throw new TRPCError({ code: 'NOT_FOUND', message: 'Thread not found' });
             }
-            const { id, ...data } = input;
-            return db.updateThread(id, data);
+            if (existing.author_id !== ctx.user!.id) {
+                throw new TRPCError({ code: 'FORBIDDEN', message: 'You can only edit your own threads' });
+            }
+
+            const thread = await forum.updateThread(id, updates);
+            if (!thread) {
+                throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to update thread' });
+            }
+            return thread;
         }),
 
-    // Delete thread
-    deleteThread: protectedProcedure
-        .input(uuidSchema)
-        .mutation(async ({ ctx, input }) => {
-            const thread = await db.getThreadById(input);
-            if (!thread || thread.author_id !== ctx.user!.id) {
-                throw new TRPCError({ code: 'FORBIDDEN', message: 'Access denied' });
+    moderateThread: protectedProcedure
+        .input(moderateThreadSchema)
+        .mutation(async ({ input }) => {
+            const { thread_id, ...updates } = input;
+            const thread = await forum.updateThread(thread_id, updates);
+            if (!thread) {
+                throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to moderate thread' });
             }
-            await db.deleteThread(input);
-            return { success: true };
+            return thread;
         }),
 
-    // Get replies
+    // Replies
     getReplies: publicProcedure
-        .input(z.object({ threadId: uuidSchema, page: z.number().min(1).default(1), pageSize: z.number().min(1).max(100).default(20) }))
+        .input(uuidSchema)
         .query(async ({ input }) => {
-            return db.getReplies(input.threadId, input.page, input.pageSize);
+            return forum.getReplies(input);
         }),
 
-    // Create reply
     createReply: protectedProcedure
-        .input(z.object({ thread_id: uuidSchema, content: z.string().min(1) }))
+        .input(createForumReplySchema)
         .mutation(async ({ ctx, input }) => {
-            return db.createReply({
+            const reply = await forum.createReply({
                 ...input,
                 author_id: ctx.user!.id,
             });
-        }),
-
-    // Delete reply
-    deleteReply: protectedProcedure
-        .input(uuidSchema)
-        .mutation(async ({ ctx, input }) => {
-            // Would verify ownership in real implementation
-            await db.deleteReply(input);
-            return { success: true };
+            if (!reply) {
+                throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to create reply' });
+            }
+            return reply;
         }),
 });

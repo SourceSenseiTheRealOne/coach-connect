@@ -1,108 +1,83 @@
-import { z } from 'zod';
-import { router, publicProcedure, protectedProcedure } from '../trpc';
-import { uuidSchema } from '../../shared/validators';
+import { router, protectedProcedure } from '../trpc';
 import { TRPCError } from '@trpc/server';
-import type { MatchRequest, PaginatedResponse } from '../../shared/types';
-
-const db = {
-    listOpenRequests: async (params: { page?: number; pageSize?: number; age_group?: string; district?: string }): Promise<PaginatedResponse<MatchRequest>> => {
-        console.log('listOpenRequests:', params);
-        return { items: [], total: 0, page: 1, pageSize: 20, totalPages: 0 };
-    },
-    getRequestById: async (id: string): Promise<MatchRequest | null> => {
-        console.log('getRequestById:', { id });
-        return null;
-    },
-    createRequest: async (data: Partial<MatchRequest>): Promise<MatchRequest> => {
-        console.log('createRequest:', { data });
-        return { ...data, id: 'mock-id' } as MatchRequest;
-    },
-    cancelRequest: async (id: string): Promise<void> => {
-        console.log('cancelRequest:', { id });
-    },
-    acceptRequest: async (requestId: string, acceptedBy: string): Promise<string> => {
-        console.log('acceptRequest:', { requestId, acceptedBy });
-        return 'mock-match-id';
-    },
-    getMyRequests: async (userId: string): Promise<MatchRequest[]> => {
-        console.log('getMyRequests:', { userId });
-        return [];
-    },
-};
-
-const createRequestSchema = z.object({
-    team_name: z.string().min(1),
-    age_group: z.string(),
-    preferred_date: z.string().optional(),
-    preferred_time: z.string().optional(),
-    location_preference: z.string().optional(),
-    district: z.string().optional(),
-    message: z.string().optional(),
-});
+import { matchRequests, supabase } from '../db';
+import { uuidSchema, createMatchRequestSchema, acceptMatchRequestSchema } from '../../shared/validators';
 
 export const matchMakerRouter = router({
-    // List open match requests
-    listOpen: publicProcedure
-        .input(z.object({ page: z.number().min(1).default(1), pageSize: z.number().min(1).max(100).default(20), age_group: z.string().optional(), district: z.string().optional() }))
-        .query(async ({ input }) => {
-            return db.listOpenRequests(input);
+    // List match requests
+    list: protectedProcedure
+        .query(async ({ ctx }) => {
+            return matchRequests.list({
+                page: 1,
+                pageSize: 50,
+                status: 'open',
+            });
         }),
 
-    // Get request by ID
-    getById: publicProcedure
+    // Get by ID
+    getById: protectedProcedure
         .input(uuidSchema)
         .query(async ({ input }) => {
-            const request = await db.getRequestById(input);
+            const request = await matchRequests.getById(input);
             if (!request) {
-                throw new TRPCError({ code: 'NOT_FOUND', message: 'Request not found' });
+                throw new TRPCError({ code: 'NOT_FOUND', message: 'Match request not found' });
             }
             return request;
         }),
 
-    // Create match request
+    // Create request
     create: protectedProcedure
-        .input(createRequestSchema)
+        .input(createMatchRequestSchema)
         .mutation(async ({ ctx, input }) => {
-            return db.createRequest({
+            const request = await matchRequests.create({
                 ...input,
                 requester_id: ctx.user!.id,
                 status: 'open',
-            } as Partial<MatchRequest>);
+            });
+            if (!request) {
+                throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to create match request' });
+            }
+            return request;
         }),
 
-    // Cancel match request
-    cancel: protectedProcedure
-        .input(uuidSchema)
+    // Accept request
+    accept: protectedProcedure
+        .input(acceptMatchRequestSchema)
         .mutation(async ({ ctx, input }) => {
-            const request = await db.getRequestById(input);
-            if (!request) {
-                throw new TRPCError({ code: 'NOT_FOUND', message: 'Request not found' });
+            const existing = await matchRequests.getById(input.request_id);
+            if (!existing) {
+                throw new TRPCError({ code: 'NOT_FOUND', message: 'Match request not found' });
             }
-            if (request.requester_id !== ctx.user!.id) {
-                throw new TRPCError({ code: 'FORBIDDEN', message: 'Access denied' });
+
+            // Accept the request - this creates a match
+            const success = await matchRequests.accept(input.request_id, ctx.user!.id, '');
+            if (!success) {
+                throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to accept match request' });
             }
-            await db.cancelRequest(input);
             return { success: true };
         }),
 
-    // Accept match request
-    accept: protectedProcedure
+    // Cancel own request
+    cancel: protectedProcedure
         .input(uuidSchema)
         .mutation(async ({ ctx, input }) => {
-            const request = await db.getRequestById(input);
-            if (!request) {
-                throw new TRPCError({ code: 'NOT_FOUND', message: 'Request not found' });
+            const existing = await matchRequests.getById(input);
+            if (!existing) {
+                throw new TRPCError({ code: 'NOT_FOUND', message: 'Match request not found' });
             }
-            if (request.status !== 'open') {
-                throw new TRPCError({ code: 'BAD_REQUEST', message: 'Request is no longer open' });
+            if (existing.requester_id !== ctx.user!.id) {
+                throw new TRPCError({ code: 'FORBIDDEN', message: 'You can only cancel your own requests' });
             }
-            const matchId = await db.acceptRequest(input, ctx.user!.id);
-            return { matchId };
-        }),
 
-    // Get my requests
-    getMyRequests: protectedProcedure
-        .query(async ({ ctx }) => {
-            return db.getMyRequests(ctx.user!.id);
+            // Update status to cancelled
+            const { error } = await supabase
+                .from('match_requests')
+                .update({ status: 'cancelled' })
+                .eq('id', input);
+
+            if (error) {
+                throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to cancel match request' });
+            }
+            return { success: true };
         }),
 });

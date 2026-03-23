@@ -1,62 +1,36 @@
-import { z } from 'zod';
 import { router, protectedProcedure } from '../trpc';
-import { uuidSchema } from '../../shared/validators';
-import type { Notification, PaginatedResponse } from '../../shared/types';
-
-const db = {
-    getNotifications: async (userId: string, page: number, pageSize: number): Promise<Notification[]> => {
-        console.log('getNotifications:', { userId, page, pageSize });
-        return [];
-    },
-    getUnreadCount: async (userId: string): Promise<number> => {
-        console.log('getUnreadCount:', { userId });
-        return 0;
-    },
-    markAsRead: async (id: string): Promise<void> => {
-        console.log('markAsRead:', { id });
-    },
-    markAllAsRead: async (userId: string): Promise<void> => {
-        console.log('markAllAsRead:', { userId });
-    },
-    deleteNotification: async (id: string): Promise<void> => {
-        console.log('deleteNotification:', { id });
-    },
-};
+import { notifications } from '../db';
+import { listNotificationsSchema, markNotificationReadSchema } from '../../shared/validators';
 
 export const notificationsRouter = router({
-    // Get user's notifications
+    // List notifications
     list: protectedProcedure
-        .input(z.object({ page: z.number().min(1).default(1), pageSize: z.number().min(1).max(100).default(20) }))
+        .input(listNotificationsSchema.optional())
         .query(async ({ ctx, input }) => {
-            return db.getNotifications(ctx.user!.id, input.page, input.pageSize);
+            return notifications.getByUser(
+                ctx.user!.id,
+                input?.unread_only ?? false
+            );
         }),
 
     // Get unread count
-    getUnreadCount: protectedProcedure
+    unreadCount: protectedProcedure
         .query(async ({ ctx }) => {
-            return db.getUnreadCount(ctx.user!.id);
+            return notifications.getUnreadCount(ctx.user!.id);
         }),
 
-    // Mark notification as read
+    // Mark as read
     markAsRead: protectedProcedure
-        .input(uuidSchema)
+        .input(markNotificationReadSchema)
         .mutation(async ({ input }) => {
-            await db.markAsRead(input);
-            return { success: true };
+            const success = await notifications.markAsRead(input.notification_id);
+            return { success };
         }),
 
     // Mark all as read
     markAllAsRead: protectedProcedure
         .mutation(async ({ ctx }) => {
-            await db.markAllAsRead(ctx.user!.id);
-            return { success: true };
-        }),
-
-    // Delete notification
-    delete: protectedProcedure
-        .input(uuidSchema)
-        .mutation(async ({ input }) => {
-            await db.deleteNotification(input);
-            return { success: true };
+            const success = await notifications.markAllAsRead(ctx.user!.id);
+            return { success };
         }),
 });

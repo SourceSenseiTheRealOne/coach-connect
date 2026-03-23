@@ -1,37 +1,56 @@
-import { z } from 'zod';
 import { router, protectedProcedure } from '../trpc';
 import { TRPCError } from '@trpc/server';
-
-const db = {
-    createUploadUrl: async (fileName: string, fileType: string, userId: string): Promise<{ uploadUrl: string; fileUrl: string }> => {
-        console.log('createUploadUrl:', { fileName, fileType, userId });
-        return { uploadUrl: 'https://mock-presigned-url.com', fileUrl: 'https://mock-file-url.com' };
-    },
-    deleteFile: async (fileUrl: string): Promise<void> => {
-        console.log('deleteFile:', { fileUrl });
-    },
-};
+import { storage } from '../db';
+import { z } from 'zod';
 
 export const uploadRouter = router({
-    // Get presigned URL for upload
-    getUploadUrl: protectedProcedure
-        .input(z.object({ fileName: z.string().min(1), fileType: z.string().min(1) }))
+    // Create signed upload URL
+    createUploadUrl: protectedProcedure
+        .input(z.object({
+            bucket: z.string(),
+            filename: z.string(),
+        }))
         .mutation(async ({ ctx, input }) => {
-            // Validate file type
-            const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/webm', 'application/pdf'];
-            if (!allowedTypes.includes(input.fileType)) {
-                throw new TRPCError({ code: 'BAD_REQUEST', message: 'File type not allowed' });
+            const result = await storage.createUploadUrl(
+                input.bucket,
+                input.filename,
+                ctx.user!.id
+            );
+
+            if (!result) {
+                throw new TRPCError({
+                    code: 'INTERNAL_SERVER_ERROR',
+                    message: 'Failed to create upload URL',
+                });
             }
 
-            const { uploadUrl, fileUrl } = await db.createUploadUrl(input.fileName, input.fileType, ctx.user!.id);
-            return { uploadUrl, fileUrl };
+            return result;
+        }),
+
+    // Get public URL
+    getPublicUrl: protectedProcedure
+        .input(z.object({
+            bucket: z.string(),
+            path: z.string(),
+        }))
+        .query(async ({ input }) => {
+            return storage.getPublicUrl(input.bucket, input.path);
         }),
 
     // Delete file
     deleteFile: protectedProcedure
-        .input(z.object({ fileUrl: z.string().min(1) }))
+        .input(z.object({
+            bucket: z.string(),
+            path: z.string(),
+        }))
         .mutation(async ({ input }) => {
-            await db.deleteFile(input.fileUrl);
+            const success = await storage.deleteFile(input.bucket, input.path);
+            if (!success) {
+                throw new TRPCError({
+                    code: 'INTERNAL_SERVER_ERROR',
+                    message: 'Failed to delete file',
+                });
+            }
             return { success: true };
         }),
 });

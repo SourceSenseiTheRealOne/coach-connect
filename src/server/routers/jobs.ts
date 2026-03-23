@@ -1,145 +1,138 @@
-import { z } from 'zod';
-import { router, publicProcedure, protectedProcedure, clubProcedure } from '../trpc';
-import { uuidSchema } from '../../shared/validators';
+import { router, publicProcedure, protectedProcedure } from '../trpc';
 import { TRPCError } from '@trpc/server';
-import type { JobListing, JobApplication, PaginatedResponse } from '../../shared/types';
-
-const db = {
-    listJobs: async (params: { page?: number; pageSize?: number; job_type?: string; location?: string }): Promise<PaginatedResponse<JobListing>> => {
-        console.log('listJobs:', params);
-        return { items: [], total: 0, page: 1, pageSize: 20, totalPages: 0 };
-    },
-    getJobById: async (id: string): Promise<JobListing | null> => {
-        console.log('getJobById:', { id });
-        return null;
-    },
-    createJob: async (data: Partial<JobListing>): Promise<JobListing> => {
-        console.log('createJob:', { data });
-        return { ...data, id: 'mock-id' } as JobListing;
-    },
-    updateJob: async (id: string, data: Partial<JobListing>): Promise<JobListing> => {
-        console.log('updateJob:', { id, data });
-        return { ...data, id } as JobListing;
-    },
-    deleteJob: async (id: string): Promise<void> => {
-        console.log('deleteJob:', { id });
-    },
-    getApplications: async (listingId: string): Promise<JobApplication[]> => {
-        console.log('getApplications:', { listingId });
-        return [];
-    },
-    apply: async (data: Partial<JobApplication>): Promise<JobApplication> => {
-        console.log('apply:', { data });
-        return { ...data, id: 'mock-id' } as JobApplication;
-    },
-    updateApplicationStatus: async (id: string, status: string): Promise<void> => {
-        console.log('updateApplicationStatus:', { id, status });
-    },
-    getMyApplications: async (userId: string): Promise<(JobApplication & { listing: JobListing })[]> => {
-        console.log('getMyApplications:', { userId });
-        return [];
-    },
-};
-
-const createJobSchema = z.object({
-    title: z.string().min(1).max(255),
-    description: z.string().min(1),
-    job_type: z.enum(['head_coach', 'assistant_coach', 'goalkeeper_coach', 'scout', 'video_analyst', 'physio', 'fitness_coach', 'director', 'other']),
-    age_group: z.string().optional(),
-    is_paid: z.boolean().default(true),
-    salary_range: z.string().optional(),
-    location: z.string().optional(),
-    application_deadline: z.string().optional(),
-});
+import { jobs } from '../db';
+import {
+    uuidSchema,
+    listJobsSchema,
+    createJobListingSchema,
+    updateJobListingSchema,
+    applyToJobSchema,
+    updateApplicationStatusSchema,
+} from '../../shared/validators';
 
 export const jobsRouter = router({
-    // List jobs
+    // List job listings
     list: publicProcedure
-        .input(z.object({ page: z.number().min(1).default(1), pageSize: z.number().min(1).max(100).default(20), job_type: z.string().optional(), location: z.string().optional() }))
+        .input(listJobsSchema)
         .query(async ({ input }) => {
-            return db.listJobs(input);
+            return jobs.list({
+                ...input,
+                page: input.page ?? 1,
+                pageSize: input.pageSize ?? 20,
+                is_active: input.is_active ?? true,
+            });
         }),
 
-    // Get job by ID
+    // Get by ID
     getById: publicProcedure
         .input(uuidSchema)
         .query(async ({ input }) => {
-            const job = await db.getJobById(input);
+            const job = await jobs.getById(input);
             if (!job) {
-                throw new TRPCError({ code: 'NOT_FOUND', message: 'Job not found' });
+                throw new TRPCError({ code: 'NOT_FOUND', message: 'Job listing not found' });
             }
             return job;
         }),
 
-    // Create job (clubs only)
-    create: clubProcedure
-        .input(createJobSchema)
+    // Create
+    create: protectedProcedure
+        .input(createJobListingSchema)
         .mutation(async ({ ctx, input }) => {
-            return db.createJob({
+            const job = await jobs.create({
                 ...input,
-                club_id: ctx.profile!.id,
+                club_id: ctx.user!.id,
                 is_active: true,
                 applications_count: 0,
-            } as Partial<JobListing>);
-        }),
-
-    // Update job
-    update: protectedProcedure
-        .input(z.object({ id: uuidSchema, data: createJobSchema.partial() }))
-        .mutation(async ({ ctx, input }) => {
-            const job = await db.getJobById(input.id);
+            });
             if (!job) {
-                throw new TRPCError({ code: 'NOT_FOUND', message: 'Job not found' });
+                throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to create job listing' });
             }
-            // Verify ownership
-            return db.updateJob(input.id, input.data as Partial<JobListing>);
+            return job;
         }),
 
-    // Delete job
+    // Update
+    update: protectedProcedure
+        .input(updateJobListingSchema.extend({ id: uuidSchema }))
+        .mutation(async ({ ctx, input }) => {
+            const { id, ...updates } = input;
+
+            const existing = await jobs.getById(id);
+            if (!existing) {
+                throw new TRPCError({ code: 'NOT_FOUND', message: 'Job listing not found' });
+            }
+            if (existing.club_id !== ctx.user!.id) {
+                throw new TRPCError({ code: 'FORBIDDEN', message: 'You can only edit your own job listings' });
+            }
+
+            const job = await jobs.update(id, updates);
+            if (!job) {
+                throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to update job listing' });
+            }
+            return job;
+        }),
+
+    // Delete
     delete: protectedProcedure
         .input(uuidSchema)
         .mutation(async ({ ctx, input }) => {
-            const job = await db.getJobById(input);
-            if (!job) {
-                throw new TRPCError({ code: 'NOT_FOUND', message: 'Job not found' });
+            const existing = await jobs.getById(input);
+            if (!existing) {
+                throw new TRPCError({ code: 'NOT_FOUND', message: 'Job listing not found' });
             }
-            await db.deleteJob(input);
+            if (existing.club_id !== ctx.user!.id) {
+                throw new TRPCError({ code: 'FORBIDDEN', message: 'You can only delete your own job listings' });
+            }
+
+            const success = await jobs.delete(input);
+            if (!success) {
+                throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to delete job listing' });
+            }
             return { success: true };
         }),
 
-    // Get applications for a job
+    // Applications
     getApplications: protectedProcedure
         .input(uuidSchema)
         .query(async ({ ctx, input }) => {
-            const job = await db.getJobById(input);
-            if (!job) {
-                throw new TRPCError({ code: 'NOT_FOUND', message: 'Job not found' });
+            const job = await jobs.getById(input);
+            if (!job || job.club_id !== ctx.user!.id) {
+                throw new TRPCError({ code: 'FORBIDDEN', message: 'You can only view applications for your own listings' });
             }
-            return db.getApplications(input);
+            return jobs.getApplications(input);
         }),
 
-    // Apply for a job
+    getMyApplication: protectedProcedure
+        .input(uuidSchema)
+        .query(async ({ ctx, input }) => {
+            return jobs.getApplicationByUser(input, ctx.user!.id);
+        }),
+
     apply: protectedProcedure
-        .input(z.object({ listing_id: uuidSchema, cover_letter: z.string().optional(), cv_url: z.string().optional() }))
+        .input(applyToJobSchema)
         .mutation(async ({ ctx, input }) => {
-            return db.apply({
+            const existing = await jobs.getApplicationByUser(input.listing_id, ctx.user!.id);
+            if (existing) {
+                throw new TRPCError({ code: 'BAD_REQUEST', message: 'You have already applied to this job' });
+            }
+
+            const application = await jobs.apply({
                 ...input,
                 applicant_id: ctx.user!.id,
                 status: 'pending',
             });
+            if (!application) {
+                throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to apply for job' });
+            }
+            return application;
         }),
 
-    // Update application status
     updateApplicationStatus: protectedProcedure
-        .input(z.object({ id: uuidSchema, status: z.enum(['pending', 'reviewed', 'accepted', 'rejected']) }))
+        .input(updateApplicationStatusSchema)
         .mutation(async ({ ctx, input }) => {
-            await db.updateApplicationStatus(input.id, input.status);
-            return { success: true };
-        }),
-
-    // Get my applications
-    getMyApplications: protectedProcedure
-        .query(async ({ ctx }) => {
-            return db.getMyApplications(ctx.user!.id);
+            const application = await jobs.updateApplicationStatus(input.application_id, input.status);
+            if (!application) {
+                throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to update application status' });
+            }
+            return application;
         }),
 });

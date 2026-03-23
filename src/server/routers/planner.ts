@@ -1,213 +1,131 @@
-import { z } from 'zod';
 import { router, protectedProcedure } from '../trpc';
+import { TRPCError } from '@trpc/server';
+import { planner } from '../db';
 import {
+    uuidSchema,
     createSeasonPlanSchema,
     updateSeasonPlanSchema,
     createTrainingSessionSchema,
     updateTrainingSessionSchema,
     addExerciseToSessionSchema,
-    uuidSchema,
 } from '../../shared/validators';
-import { TRPCError } from '@trpc/server';
-import type { SeasonPlan, TrainingSession, SessionExercise } from '../../shared/types';
-
-// Placeholder database functions
-const db = {
-    getPlans: async (ownerId: string): Promise<SeasonPlan[]> => {
-        console.log('getPlans:', { ownerId });
-        return [];
-    },
-    getPlanById: async (id: string): Promise<SeasonPlan | null> => {
-        console.log('getPlanById:', { id });
-        return null;
-    },
-    createPlan: async (data: Partial<SeasonPlan>): Promise<SeasonPlan> => {
-        console.log('createPlan:', { data });
-        return { ...data, id: 'mock-id' } as SeasonPlan;
-    },
-    updatePlan: async (id: string, data: Partial<SeasonPlan>): Promise<SeasonPlan> => {
-        console.log('updatePlan:', { id, data });
-        return { ...data, id } as SeasonPlan;
-    },
-    deletePlan: async (id: string): Promise<void> => {
-        console.log('deletePlan:', { id });
-    },
-    getSessions: async (planId: string): Promise<TrainingSession[]> => {
-        console.log('getSessions:', { planId });
-        return [];
-    },
-    getSessionById: async (id: string): Promise<TrainingSession | null> => {
-        console.log('getSessionById:', { id });
-        return null;
-    },
-    createSession: async (data: Partial<TrainingSession>): Promise<TrainingSession> => {
-        console.log('createSession:', { data });
-        return { ...data, id: 'mock-id' } as TrainingSession;
-    },
-    updateSession: async (id: string, data: Partial<TrainingSession>): Promise<TrainingSession> => {
-        console.log('updateSession:', { id, data });
-        return { ...data, id } as TrainingSession;
-    },
-    deleteSession: async (id: string): Promise<void> => {
-        console.log('deleteSession:', { id });
-    },
-    getSessionExercises: async (sessionId: string): Promise<SessionExercise[]> => {
-        console.log('getSessionExercises:', { sessionId });
-        return [];
-    },
-    addExerciseToSession: async (data: Partial<SessionExercise>): Promise<SessionExercise> => {
-        console.log('addExerciseToSession:', { data });
-        return { ...data, id: 'mock-id' } as SessionExercise;
-    },
-    removeExerciseFromSession: async (id: string): Promise<void> => {
-        console.log('removeExerciseFromSession:', { id });
-    },
-    reorderSessionExercises: async (sessionId: string, exerciseIds: string[]): Promise<void> => {
-        console.log('reorderSessionExercises:', { sessionId, exerciseIds });
-    },
-};
 
 export const plannerRouter = router({
-    // List user's season plans
-    list: protectedProcedure
+    // Season Plans
+    getSeasonPlans: protectedProcedure
         .query(async ({ ctx }) => {
-            return db.getPlans(ctx.user!.id);
+            return planner.getSeasonPlans(ctx.user!.id);
         }),
 
-    // Get plan by ID with sessions
-    getById: protectedProcedure
+    getSeasonPlanById: protectedProcedure
         .input(uuidSchema)
-        .query(async ({ ctx, input }) => {
-            const plan = await db.getPlanById(input);
+        .query(async ({ input }) => {
+            const plan = await planner.getSeasonPlanById(input);
             if (!plan) {
-                throw new TRPCError({ code: 'NOT_FOUND', message: 'Plan not found' });
+                throw new TRPCError({ code: 'NOT_FOUND', message: 'Season plan not found' });
             }
-            if (plan.owner_id !== ctx.user!.id) {
-                throw new TRPCError({ code: 'FORBIDDEN', message: 'Access denied' });
-            }
-            const sessions = await db.getSessions(input);
-            return { ...plan, sessions };
+            return plan;
         }),
 
-    // Create season plan
-    create: protectedProcedure
+    createSeasonPlan: protectedProcedure
         .input(createSeasonPlanSchema)
         .mutation(async ({ ctx, input }) => {
-            return db.createPlan({ ...input, owner_id: ctx.user!.id });
+            const plan = await planner.createSeasonPlan({
+                ...input,
+                owner_id: ctx.user!.id,
+            });
+            if (!plan) {
+                throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to create season plan' });
+            }
+            return plan;
         }),
 
-    // Update season plan
-    update: protectedProcedure
+    updateSeasonPlan: protectedProcedure
         .input(updateSeasonPlanSchema.extend({ id: uuidSchema }))
-        .mutation(async ({ ctx, input }) => {
-            const { id, ...data } = input;
-            const plan = await db.getPlanById(id);
-            if (!plan || plan.owner_id !== ctx.user!.id) {
-                throw new TRPCError({ code: 'FORBIDDEN', message: 'Access denied' });
+        .mutation(async ({ input }) => {
+            const { id, ...updates } = input;
+            const plan = await planner.updateSeasonPlan(id, updates);
+            if (!plan) {
+                throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to update season plan' });
             }
-            return db.updatePlan(id, data);
+            return plan;
         }),
 
-    // Delete season plan
-    delete: protectedProcedure
+    deleteSeasonPlan: protectedProcedure
         .input(uuidSchema)
-        .mutation(async ({ ctx, input }) => {
-            const plan = await db.getPlanById(input);
-            if (!plan || plan.owner_id !== ctx.user!.id) {
-                throw new TRPCError({ code: 'FORBIDDEN', message: 'Access denied' });
+        .mutation(async ({ input }) => {
+            const success = await planner.deleteSeasonPlan(input);
+            if (!success) {
+                throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to delete season plan' });
             }
-            await db.deletePlan(input);
             return { success: true };
         }),
 
-    // Create training session
-    createSession: protectedProcedure
+    // Training Sessions
+    getTrainingSessions: protectedProcedure
+        .input(uuidSchema)
+        .query(async ({ input }) => {
+            return planner.getTrainingSessions(input);
+        }),
+
+    createTrainingSession: protectedProcedure
         .input(createTrainingSessionSchema)
         .mutation(async ({ ctx, input }) => {
-            const plan = await db.getPlanById(input.plan_id);
-            if (!plan || plan.owner_id !== ctx.user!.id) {
-                throw new TRPCError({ code: 'FORBIDDEN', message: 'Access denied' });
+            const session = await planner.createTrainingSession({
+                ...input,
+                sort_order: 0,
+            });
+            if (!session) {
+                throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to create training session' });
             }
-            return db.createSession(input);
+            return session;
         }),
 
-    // Update training session
-    updateSession: protectedProcedure
+    updateTrainingSession: protectedProcedure
         .input(updateTrainingSessionSchema.extend({ id: uuidSchema }))
-        .mutation(async ({ ctx, input }) => {
-            const { id, ...data } = input;
-            const session = await db.getSessionById(id);
+        .mutation(async ({ input }) => {
+            const { id, ...updates } = input;
+            const session = await planner.updateTrainingSession(id, updates);
             if (!session) {
-                throw new TRPCError({ code: 'NOT_FOUND', message: 'Session not found' });
+                throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to update training session' });
             }
-            const plan = await db.getPlanById(session.plan_id);
-            if (!plan || plan.owner_id !== ctx.user!.id) {
-                throw new TRPCError({ code: 'FORBIDDEN', message: 'Access denied' });
-            }
-            return db.updateSession(id, data);
+            return session;
         }),
 
-    // Delete training session
-    deleteSession: protectedProcedure
+    deleteTrainingSession: protectedProcedure
         .input(uuidSchema)
-        .mutation(async ({ ctx, input }) => {
-            const session = await db.getSessionById(input);
-            if (!session) {
-                throw new TRPCError({ code: 'NOT_FOUND', message: 'Session not found' });
+        .mutation(async ({ input }) => {
+            const success = await planner.deleteTrainingSession(input);
+            if (!success) {
+                throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to delete training session' });
             }
-            const plan = await db.getPlanById(session.plan_id);
-            if (!plan || plan.owner_id !== ctx.user!.id) {
-                throw new TRPCError({ code: 'FORBIDDEN', message: 'Access denied' });
-            }
-            await db.deleteSession(input);
             return { success: true };
         }),
 
-    // Add exercise to session
-    addExerciseToSession: protectedProcedure
-        .input(addExerciseToSessionSchema)
-        .mutation(async ({ ctx, input }) => {
-            const session = await db.getSessionById(input.session_id);
-            if (!session) {
-                throw new TRPCError({ code: 'NOT_FOUND', message: 'Session not found' });
-            }
-            const plan = await db.getPlanById(session.plan_id);
-            if (!plan || plan.owner_id !== ctx.user!.id) {
-                throw new TRPCError({ code: 'FORBIDDEN', message: 'Access denied' });
-            }
-            return db.addExerciseToSession(input);
-        }),
-
-    // Remove exercise from session
-    removeExerciseFromSession: protectedProcedure
-        .input(uuidSchema)
-        .mutation(async ({ ctx, input }) => {
-            // In real implementation, would fetch session exercise and verify ownership
-            await db.removeExerciseFromSession(input);
-            return { success: true };
-        }),
-
-    // Reorder exercises in session
-    reorderSessionExercises: protectedProcedure
-        .input(z.object({ id: uuidSchema, exerciseIds: z.array(uuidSchema) }))
-        .mutation(async ({ ctx, input }) => {
-            const { id: sessionId, exerciseIds } = input;
-            const session = await db.getSessionById(sessionId);
-            if (!session) {
-                throw new TRPCError({ code: 'NOT_FOUND', message: 'Session not found' });
-            }
-            const plan = await db.getPlanById(session.plan_id);
-            if (!plan || plan.owner_id !== ctx.user!.id) {
-                throw new TRPCError({ code: 'FORBIDDEN', message: 'Access denied' });
-            }
-            await db.reorderSessionExercises(sessionId, exerciseIds);
-            return { success: true };
-        }),
-
-    // Get session exercises
+    // Session Exercises
     getSessionExercises: protectedProcedure
         .input(uuidSchema)
         .query(async ({ input }) => {
-            return db.getSessionExercises(input);
+            return planner.getSessionExercises(input);
+        }),
+
+    addExerciseToSession: protectedProcedure
+        .input(addExerciseToSessionSchema)
+        .mutation(async ({ input }) => {
+            const sessionExercise = await planner.addExerciseToSession(input);
+            if (!sessionExercise) {
+                throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to add exercise to session' });
+            }
+            return sessionExercise;
+        }),
+
+    removeExerciseFromSession: protectedProcedure
+        .input(uuidSchema)
+        .mutation(async ({ input }) => {
+            const success = await planner.removeExerciseFromSession(input);
+            if (!success) {
+                throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to remove exercise from session' });
+            }
+            return { success: true };
         }),
 });
