@@ -152,10 +152,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         password,
       });
 
-      if (error) return { error: new Error(error.message) };
+      if (error) {
+        // Provide more helpful error messages
+        let message = error.message;
+        if (error.message.includes("Invalid login credentials")) {
+          message =
+            "Invalid email or password. Please check your credentials and try again.";
+        } else if (error.message.includes("Email not confirmed")) {
+          message =
+            "Please check your email and click the confirmation link before signing in.";
+        } else if (error.message.includes("Too many requests")) {
+          message =
+            "Too many login attempts. Please wait a moment and try again.";
+        }
+        return { error: new Error(message) };
+      }
       return { error: null };
     } catch (error) {
-      return { error: error as Error };
+      const message =
+        error instanceof Error
+          ? error.message
+          : "An unexpected error occurred during sign in.";
+      return { error: new Error(message) };
     }
   };
 
