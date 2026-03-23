@@ -14,7 +14,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "server": "tsx server/index.ts",
-    "seed": "tsx scripts/seed.ts"
+    "seed": "tsx scripts/seed.ts",
+    "create-user": "tsx scripts/create-user.ts",
+    "fix-prod-user": "tsx scripts/fix-prod-user.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
