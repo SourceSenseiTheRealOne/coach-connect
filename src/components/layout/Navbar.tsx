@@ -1,6 +1,6 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useState } from "react";
-import { Menu, X, LogOut, User, Loader2 } from "lucide-react";
+import { Menu, X, LogOut, User, Loader2, Sun, Moon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/lib/auth-context";
+import { useTheme } from "@/lib/theme-context";
 import { toast } from "sonner";
 
 const navLinks = [
@@ -25,6 +26,7 @@ export default function Navbar() {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const { user, profile, loading, signOut } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
@@ -88,6 +90,19 @@ export default function Navbar() {
 
         {/* Desktop auth buttons */}
         <div className="hidden md:flex items-center gap-3">
+          {/* Theme toggle */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleTheme}
+            className="text-muted-foreground hover:text-foreground"
+          >
+            {theme === "dark" ? (
+              <Sun className="h-5 w-5" />
+            ) : (
+              <Moon className="h-5 w-5" />
+            )}
+          </Button>
           {loading ? (
             <Loader2 className="h-5 w-5 animate-spin text-primary" />
           ) : user ? (
@@ -191,6 +206,25 @@ export default function Navbar() {
                 {link.label}
               </Link>
             ))}
+            {/* Mobile theme toggle */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={toggleTheme}
+              className="w-full border-border text-foreground justify-start"
+            >
+              {theme === "dark" ? (
+                <>
+                  <Sun className="h-4 w-4 mr-2" />
+                  Light Mode
+                </>
+              ) : (
+                <>
+                  <Moon className="h-4 w-4 mr-2" />
+                  Dark Mode
+                </>
+              )}
+            </Button>
             <div className="flex gap-2 mt-2 pt-2 border-t border-border">
               {loading ? (
                 <div className="flex-1 flex justify-center py-2">

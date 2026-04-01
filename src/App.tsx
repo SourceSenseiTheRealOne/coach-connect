@@ -4,6 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/lib/auth-context";
+import { ThemeProvider } from "@/lib/theme-context";
 import PublicLayout from "@/components/layout/PublicLayout";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
@@ -32,57 +33,59 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <AuthProvider>
-          <Routes>
-            {/* Public pages */}
-            <Route element={<PublicLayout />}>
-              <Route path="/" element={<LandingPage />} />
-              <Route path="/about" element={<AboutPage />} />
-              <Route path="/features" element={<FeaturesPage />} />
-              <Route path="/pricing" element={<PricingPage />} />
-            </Route>
+    <ThemeProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <AuthProvider>
+            <Routes>
+              {/* Public pages */}
+              <Route element={<PublicLayout />}>
+                <Route path="/" element={<LandingPage />} />
+                <Route path="/about" element={<AboutPage />} />
+                <Route path="/features" element={<FeaturesPage />} />
+                <Route path="/pricing" element={<PricingPage />} />
+              </Route>
 
-            {/* Auth pages */}
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/signup" element={<SignupPage />} />
-            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-            <Route path="/reset-password" element={<ResetPasswordPage />} />
-            <Route path="/auth/callback" element={<AuthCallbackPage />} />
+              {/* Auth pages */}
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/signup" element={<SignupPage />} />
+              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
+              <Route path="/auth/callback" element={<AuthCallbackPage />} />
 
-            {/* Dashboard - Protected routes */}
-            <Route
-              path="/dashboard"
-              element={
-                <ProtectedRoute>
-                  <DashboardLayout />
-                </ProtectedRoute>
-              }
-            >
+              {/* Dashboard - Protected routes */}
               <Route
-                index
-                element={<Navigate to="/dashboard/feed" replace />}
-              />
-              <Route path="feed" element={<FeedPage />} />
-              <Route path="exercises" element={<ExercisesPage />} />
-              <Route path="tactic-board" element={<TacticBoardPage />} />
-              <Route path="planner" element={<PlannerPage />} />
-              <Route path="messages" element={<MessagesPage />} />
-              <Route path="jobs" element={<JobsPage />} />
-              <Route path="marketplace" element={<MarketplacePage />} />
-              <Route path="forum" element={<ForumPage />} />
-              <Route path="profile" element={<ProfilePage />} />
-              <Route path="settings" element={<SettingsPage />} />
-            </Route>
+                path="/dashboard"
+                element={
+                  <ProtectedRoute>
+                    <DashboardLayout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route
+                  index
+                  element={<Navigate to="/dashboard/feed" replace />}
+                />
+                <Route path="feed" element={<FeedPage />} />
+                <Route path="exercises" element={<ExercisesPage />} />
+                <Route path="tactic-board" element={<TacticBoardPage />} />
+                <Route path="planner" element={<PlannerPage />} />
+                <Route path="messages" element={<MessagesPage />} />
+                <Route path="jobs" element={<JobsPage />} />
+                <Route path="marketplace" element={<MarketplacePage />} />
+                <Route path="forum" element={<ForumPage />} />
+                <Route path="profile" element={<ProfilePage />} />
+                <Route path="settings" element={<SettingsPage />} />
+              </Route>
 
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </AuthProvider>
-      </BrowserRouter>
-    </TooltipProvider>
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </AuthProvider>
+        </BrowserRouter>
+      </TooltipProvider>
+    </ThemeProvider>
   </QueryClientProvider>
 );
 
