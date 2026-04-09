@@ -391,11 +391,100 @@ async function seedNotifications(userIds: string[]) {
     console.log('Created notifications');
 }
 
+async function seedTacticBoards(userIds: string[]) {
+    console.log('Seeding tactic boards...');
+
+    const formations: Record<string, Array<{ x: number; y: number; label: string }>> = {
+        '4-3-3': [
+            { x: 10, y: 50, label: 'GK' }, { x: 25, y: 15, label: 'LB' }, { x: 25, y: 38, label: 'CB' },
+            { x: 25, y: 62, label: 'CB' }, { x: 25, y: 85, label: 'RB' }, { x: 45, y: 25, label: 'CM' },
+            { x: 45, y: 50, label: 'CM' }, { x: 45, y: 75, label: 'CM' }, { x: 70, y: 15, label: 'LW' },
+            { x: 75, y: 50, label: 'ST' }, { x: 70, y: 85, label: 'RW' },
+        ],
+        '4-4-2': [
+            { x: 10, y: 50, label: 'GK' }, { x: 25, y: 15, label: 'LB' }, { x: 25, y: 38, label: 'CB' },
+            { x: 25, y: 62, label: 'CB' }, { x: 25, y: 85, label: 'RB' }, { x: 50, y: 15, label: 'LM' },
+            { x: 50, y: 38, label: 'CM' }, { x: 50, y: 62, label: 'CM' }, { x: 50, y: 85, label: 'RM' },
+            { x: 75, y: 38, label: 'ST' }, { x: 75, y: 62, label: 'ST' },
+        ],
+        '3-5-2': [
+            { x: 10, y: 50, label: 'GK' }, { x: 25, y: 25, label: 'CB' }, { x: 25, y: 50, label: 'CB' },
+            { x: 25, y: 75, label: 'CB' }, { x: 45, y: 10, label: 'LWB' }, { x: 45, y: 35, label: 'CM' },
+            { x: 45, y: 50, label: 'CM' }, { x: 45, y: 65, label: 'CM' }, { x: 45, y: 90, label: 'RWB' },
+            { x: 70, y: 38, label: 'ST' }, { x: 70, y: 62, label: 'ST' },
+        ],
+    };
+
+    const opposingPlayers = [
+        { x: 90, y: 50, label: 'GK' }, { x: 75, y: 85, label: 'LB' }, { x: 75, y: 62, label: 'CB' },
+        { x: 75, y: 38, label: 'CB' }, { x: 75, y: 15, label: 'RB' }, { x: 55, y: 75, label: 'CM' },
+        { x: 55, y: 50, label: 'CM' }, { x: 55, y: 25, label: 'CM' }, { x: 35, y: 85, label: 'LW' },
+        { x: 30, y: 50, label: 'ST' }, { x: 35, y: 15, label: 'RW' },
+    ];
+
+    const mockBoards = [
+        {
+            title: 'Match vs Barcelona - 4-3-3 Attack',
+            formation: '4-3-3' as const,
+            arrows: [
+                { id: 'arrow-1', startX: 45, startY: 25, endX: 70, endY: 15, color: '#3b82f6', type: 'solid' },
+                { id: 'arrow-2', startX: 45, startY: 75, endX: 70, endY: 85, color: '#3b82f6', type: 'solid' },
+                { id: 'arrow-3', startX: 45, startY: 50, endX: 75, endY: 50, color: '#ef4444', type: 'dashed' },
+            ],
+            is_public: true,
+        },
+        {
+            title: 'Defensive Shape - 4-4-2 Block',
+            formation: '4-4-2' as const,
+            arrows: [],
+            is_public: false,
+        },
+        {
+            title: 'Counter Attack - 3-5-2',
+            formation: '3-5-2' as const,
+            arrows: [
+                { id: 'arrow-1', startX: 45, startY: 10, endX: 70, endY: 38, color: '#22c55e', type: 'solid' },
+                { id: 'arrow-2', startX: 45, startY: 90, endX: 70, endY: 62, color: '#22c55e', type: 'solid' },
+            ],
+            is_public: true,
+        },
+    ];
+
+    for (let i = 0; i < mockBoards.length; i++) {
+        const board = mockBoards[i];
+        const ownerId = userIds[i % userIds.length];
+        const formationPlayers = formations[board.formation] || formations['4-3-3'];
+
+        const boardData = {
+            formation: board.formation,
+            players: [
+                ...formationPlayers.map((p, j) => ({ ...p, id: `home-${j}`, team: 'home' as const })),
+                ...opposingPlayers.map((p, j) => ({ ...p, id: `away-${j}`, team: 'away' as const })),
+            ],
+            arrows: board.arrows,
+            is_public: board.is_public,
+        };
+
+        const { error } = await supabase.from('tactic_boards').insert({
+            owner_id: ownerId,
+            title: board.title,
+            board_data: boardData,
+            animation_data: null,
+            thumbnail_url: null,
+        });
+
+        if (error) {
+            console.error(`Error creating tactic board ${board.title}:`, error.message);
+        } else {
+            console.log(`Created tactic board: ${board.title}`);
+        }
+    }
+}
+
 async function main() {
     console.log('Starting seed process...\n');
 
     try {
-        // Seed in order respecting foreign key constraints
         const userIds = await seedUsers();
         const clubIds = await seedClubs();
 
@@ -406,6 +495,7 @@ async function main() {
         await seedPosts(userIds);
         await seedConnections(userIds);
         await seedNotifications(userIds);
+        await seedTacticBoards(userIds);
 
         console.log('\n✅ Seed completed successfully!');
     } catch (error) {
