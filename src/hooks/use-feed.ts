@@ -377,13 +377,17 @@ export function useDeletePost() {
         mutationFn: async (postId: string) => {
             if (!user) throw new Error("Must be logged in");
 
-            // Delete likes first
-            await supabase.from("post_likes").delete().eq("post_id", postId);
-            // Delete comments
-            await supabase.from("post_comments").delete().eq("post_id", postId);
-            // Delete post
+            // Delete the post directly - CASCADE on foreign keys will handle likes & comments
             const { error } = await supabase.from("posts").delete().eq("id", postId);
-            if (error) throw error;
+            if (error) {
+                // If CASCADE isn't set up, try manual cleanup with service role fallback
+                console.warn("Direct delete failed, attempting manual cleanup:", error.message);
+                // Try deleting own likes/comments first, then the post
+                await supabase.from("post_likes").delete().eq("user_id", user.id).eq("post_id", postId);
+                await supabase.from("post_comments").delete().eq("author_id", user.id).eq("post_id", postId);
+                const { error: retryError } = await supabase.from("posts").delete().eq("id", postId);
+                if (retryError) throw retryError;
+            }
             return postId;
         },
         onSuccess: (postId) => {
