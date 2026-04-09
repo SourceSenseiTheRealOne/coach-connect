@@ -107,7 +107,7 @@ export const jobsRouter = router({
             return jobs.getApplicationByUser(input, ctx.user!.id);
         }),
 
-    apply: protectedProcedure
+    submitApplication: protectedProcedure
         .input(applyToJobSchema)
         .mutation(async ({ ctx, input }) => {
             const existing = await jobs.getApplicationByUser(input.listing_id, ctx.user!.id);

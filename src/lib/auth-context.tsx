@@ -65,18 +65,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    let mounted = true;
+
+    // Timeout fallback: if session loading takes too long, stop loading
+    // to prevent infinite spinner (e.g., IndexedDB lock after dev server restart)
+    const loadingTimeout = setTimeout(() => {
+      if (mounted) {
+        console.warn("Auth session loading timed out, clearing loading state");
+        setLoading(false);
+      }
+    }, 10000);
+
     // Get initial session
     supabase.auth
       .getSession()
       .then(async ({ data: { session: initialSession } }) => {
+        clearTimeout(loadingTimeout);
+        if (!mounted) return;
+
         setSession(initialSession);
         setUser(initialSession?.user ?? null);
 
         if (initialSession?.user) {
           const profileData = await fetchProfile(initialSession.user.id);
+          if (!mounted) return;
           setProfile(profileData);
         }
 
+        setLoading(false);
+      })
+      .catch((error) => {
+        clearTimeout(loadingTimeout);
+        if (!mounted) return;
+        console.error("Failed to get session:", error);
+        // Clear any stale session state and stop loading
+        setSession(null);
+        setUser(null);
+        setProfile(null);
         setLoading(false);
       });
 
@@ -84,11 +109,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, newSession) => {
+      if (!mounted) return;
+
       setSession(newSession);
       setUser(newSession?.user ?? null);
 
       if (newSession?.user) {
         const profileData = await fetchProfile(newSession.user.id);
+        if (!mounted) return;
         setProfile(profileData);
       } else {
         setProfile(null);
@@ -98,6 +126,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     return () => {
+      mounted = false;
+      clearTimeout(loadingTimeout);
       subscription.unsubscribe();
     };
   }, []);

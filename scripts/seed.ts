@@ -391,6 +391,86 @@ async function seedNotifications(userIds: string[]) {
     console.log('Created notifications');
 }
 
+async function seedPlanner(userIds: string[]) {
+    console.log('Seeding planner data...');
+
+    // Create season plans for the first 3 users
+    const mockPlans = [
+        { title: 'U15 Season 2025/26', age_group: 'U15', season_start: '2025-09-01', season_end: '2026-06-30', plan_type: 'full_season' },
+        { title: 'U12 Development Plan', age_group: 'U12', season_start: '2025-09-01', season_end: '2026-06-30', plan_type: 'full_season' },
+        { title: 'Pre-Season Intensive', age_group: 'U17', season_start: '2026-01-06', season_end: '2026-03-31', plan_type: '3_month' },
+    ];
+
+    const planIds: string[] = [];
+
+    for (let i = 0; i < mockPlans.length; i++) {
+        const plan = mockPlans[i];
+        const ownerId = userIds[i % userIds.length];
+
+        const { data, error } = await supabase.from('season_plans').insert({
+            ...plan,
+            owner_id: ownerId,
+        }).select('id').single();
+
+        if (error) {
+            console.error(`Error creating plan ${plan.title}:`, error.message);
+        } else {
+            planIds.push(data.id);
+            console.log(`Created plan: ${plan.title}`);
+        }
+    }
+
+    // Create training sessions for the first plan (current week)
+    const now = new Date();
+    const currentDay = now.getDay();
+    const monday = new Date(now);
+    const diff = currentDay === 0 ? -6 : 1 - currentDay;
+    monday.setDate(now.getDate() + diff);
+
+    const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+    const mockSessions = [
+        { dayOffset: 0, title: 'Passing & Possession', start_time: '10:00', end_time: '11:30', notes: 'Focus on quick passing combinations and ball retention.' },
+        { dayOffset: 1, title: 'Defensive Shape', start_time: '10:00', end_time: '11:30', notes: 'Working on defensive positioning and pressing.' },
+        { dayOffset: 2, title: 'Shooting & Finishing', start_time: '14:00', end_time: '15:30', notes: 'Various finishing drills and 1v1 situations.' },
+        { dayOffset: 3, title: 'Tactical Walkthrough', start_time: '10:00', end_time: '11:00', notes: 'Set pieces and formation review.' },
+        { dayOffset: 4, title: 'Small-Sided Games', start_time: '10:00', end_time: '11:30', notes: 'Competitive games focusing on the week\'s topics.' },
+        { dayOffset: 5, title: 'Match Day Prep', start_time: '09:00', end_time: '10:00', notes: 'Light activation and tactical briefing.' },
+    ];
+
+    for (const planId of planIds) {
+        for (const session of mockSessions) {
+            const sessionDate = new Date(monday);
+            sessionDate.setDate(monday.getDate() + session.dayOffset);
+            const dateStr = sessionDate.toISOString().split('T')[0];
+
+            const { data: sessionData, error } = await supabase.from('training_sessions').insert({
+                plan_id: planId,
+                title: session.title,
+                scheduled_date: dateStr,
+                start_time: session.start_time,
+                end_time: session.end_time,
+                notes: session.notes,
+            }).select('id').single();
+
+            if (error) {
+                console.error(`Error creating session ${session.title}:`, error.message);
+            } else {
+                console.log(`Created session: ${session.title}`);
+
+                // Add some exercises to sessions
+                const exerciseCount = 2 + Math.floor(Math.random() * 2);
+                for (let j = 0; j < exerciseCount; j++) {
+                    const exerciseId = (j + 1).toString(); // won't match real IDs, but shows structure
+                    // Skip actually inserting since exercise IDs would need to exist
+                }
+            }
+        }
+    }
+
+    console.log('Created planner data');
+}
+
 async function seedTacticBoards(userIds: string[]) {
     console.log('Seeding tactic boards...');
 
@@ -495,6 +575,7 @@ async function main() {
         await seedPosts(userIds);
         await seedConnections(userIds);
         await seedNotifications(userIds);
+        await seedPlanner(userIds);
         await seedTacticBoards(userIds);
 
         console.log('\n✅ Seed completed successfully!');
