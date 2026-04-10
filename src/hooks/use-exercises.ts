@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
-import type { ExerciseCategory, AgeGroup, Difficulty } from "@/shared/types";
+import type { Exercise, Profile, ExerciseCategory, AgeGroup, Difficulty } from "@/shared/types";
 import { useCallback } from "react";
 
 // ============================================================
@@ -65,7 +65,7 @@ const exerciseKeys = {
 async function fetchExercisesWithAuthors(filters: ExerciseFilters): Promise<ExerciseWithAuthor[]> {
     let query = supabase
         .from("exercises")
-        .select("*, author:profiles(*)")
+        .select("*, author:profiles(id, username, full_name, avatar_url, user_type, uefa_license, is_verified, city)")
         .eq("status", "approved")
         .order("likes_count", { ascending: false });
 

@@ -589,28 +589,32 @@ export const messaging = {
 
         if (convError) return [];
 
-        // Get last message for each conversation
-        const result = await Promise.all(
-            (conversations || []).map(async (conv) => {
-                const { data: lastMessage } = await supabase
-                    .from('messages')
-                    .select('*')
-                    .eq('conversation_id', conv.id)
-                    .order('created_at', { ascending: false })
-                    .limit(1)
-                    .single();
+        // Batch-fetch last messages for all conversations in a single query
+        const { data: lastMessages } = await supabase
+            .from('messages')
+            .select('*, conversation_id')
+            .in('conversation_id', conversationIds)
+            .order('created_at', { ascending: false });
 
-                const participants = conv.conversation_participants
-                    .map((p: { profile: Profile }) => p.profile)
-                    .filter(Boolean);
+        // Build a map of conversation_id -> last message
+        const lastMessageMap = new Map<string, Message>();
+        for (const msg of lastMessages || []) {
+            if (!lastMessageMap.has(msg.conversation_id)) {
+                lastMessageMap.set(msg.conversation_id, msg as Message);
+            }
+        }
 
-                return {
-                    ...conv,
-                    participants,
-                    last_message: lastMessage || undefined,
-                } as Conversation & { participants: Profile[], last_message?: Message };
-            })
-        );
+        const result = (conversations || []).map((conv) => {
+            const participants = conv.conversation_participants
+                .map((p: { profile: Profile }) => p.profile)
+                .filter(Boolean);
+
+            return {
+                ...conv,
+                participants,
+                last_message: lastMessageMap.get(conv.id) || undefined,
+            } as Conversation & { participants: Profile[], last_message?: Message };
+        });
 
         return result;
     },

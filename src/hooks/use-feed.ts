@@ -75,7 +75,7 @@ async function fetchPostsWithAuthors(page = 1, pageSize = 20): Promise<PostWithA
 
     const { data, error } = await supabase
         .from("posts")
-        .select("*, author:profiles(*)")
+        .select("*, author:profiles(id, username, full_name, avatar_url, user_type, uefa_license, is_verified, city)")
         .order("created_at", { ascending: false })
         .range(from, to);
 
@@ -115,7 +115,7 @@ async function fetchMyLikes(userId: string, postIds: string[]): Promise<Set<stri
 async function fetchCommentsWithAuthors(postId: string): Promise<CommentWithAuthor[]> {
     const { data, error } = await supabase
         .from("post_comments")
-        .select("*, author:profiles(*)")
+        .select("*, author:profiles(id, username, full_name, avatar_url)")
         .eq("post_id", postId)
         .order("created_at", { ascending: true });
 

@@ -561,6 +561,108 @@ async function seedTacticBoards(userIds: string[]) {
     }
 }
 
+async function seedMessages(userIds: string[]) {
+    console.log('Seeding messages...');
+
+    if (userIds.length < 3) {
+        console.log('Not enough users for messaging seed');
+        return;
+    }
+
+    const mockConversations = [
+        {
+            participant_indices: [0, 1], messages: [
+                { sender_index: 1, content: 'Hey João! I saw your tactical analysis post. Really impressive work on the pressing triggers.' },
+                { sender_index: 0, content: 'Thanks Maria! I\'ve been working on that with my U16s. Would love to share some drills if you\'re interested.' },
+                { sender_index: 1, content: 'Absolutely! I\'m always looking for new pressing exercises. Can we set up a call this week?' },
+                { sender_index: 0, content: 'Sure! How about Thursday afternoon? I\'m free after 3pm.' },
+                { sender_index: 1, content: 'Perfect, Thursday at 3:30pm works for me. Talk then! 👍' },
+            ]
+        },
+        {
+            participant_indices: [0, 2], messages: [
+                { sender_index: 2, content: 'João, I heard you\'re looking for assistant coaches for the upcoming season. I might know someone.' },
+                { sender_index: 0, content: 'That would be great! We\'re expanding our academy and need UEFA B licensed coaches.' },
+                { sender_index: 2, content: 'I\'ll send you their contact info. They have experience with U14-U17 age groups.' },
+                { sender_index: 0, content: 'Perfect, that\'s exactly what we need. Thanks Pedro!' },
+            ]
+        },
+        {
+            participant_indices: [1, 3], messages: [
+                { sender_index: 1, content: 'Hi Ana, I\'m looking for a fitness trainer to collaborate with. Your profile looks great!' },
+                { sender_index: 3, content: 'Hi Maria! Thanks for reaching out. I\'d love to collaborate. What kind of program are you looking for?' },
+                { sender_index: 1, content: 'I need someone to help with conditioning for my U15 team. Mainly injury prevention and agility work.' },
+                { sender_index: 3, content: 'That\'s my specialty! I can put together a 8-week program. Shall we meet to discuss details?' },
+                { sender_index: 1, content: 'Sounds perfect. Let\'s meet next week. I\'ll send you some availability.' },
+                { sender_index: 3, content: 'Looking forward to it! 🏋️' },
+            ]
+        },
+        {
+            participant_indices: [4, 0], messages: [
+                { sender_index: 4, content: 'Hi João, I watched your U15 team play last weekend. You have some really talented players!' },
+                { sender_index: 0, content: 'Thanks Carlos! We\'ve been working hard on their development. Did anyone catch your eye?' },
+                { sender_index: 4, content: 'Definitely. I\'d love to discuss a couple of players privately. Can we set up a meeting?' },
+            ]
+        },
+        {
+            participant_indices: [5, 1], messages: [
+                { sender_index: 5, content: 'Coach Santos, I\'m a big fan of your work! I\'m just starting my coaching journey. Any advice?' },
+                { sender_index: 1, content: 'Welcome Sofia! The best advice I can give is to never stop learning. Watch as many sessions as you can.' },
+                { sender_index: 5, content: 'Thank you! I\'ve been watching a lot of session plans on Coach Connect. Such a great resource.' },
+                { sender_index: 1, content: 'That\'s great to hear! Feel free to reach out anytime if you have questions. We\'re all in this together! ⚽' },
+            ]
+        },
+    ];
+
+    for (const conv of mockConversations) {
+        // Create conversation
+        const { data: convData, error: convError } = await supabase
+            .from('conversations')
+            .insert({})
+            .select('id')
+            .single();
+
+        if (convError || !convData) {
+            console.error('Error creating conversation:', convError?.message);
+            continue;
+        }
+
+        const convId = convData.id;
+
+        // Add participants
+        const participantIds = conv.participant_indices.map(i => userIds[i]);
+        for (const pId of participantIds) {
+            await supabase.from('conversation_participants').insert({
+                conversation_id: convId,
+                user_id: pId,
+            });
+        }
+
+        // Add messages
+        for (let mIdx = 0; mIdx < conv.messages.length; mIdx++) {
+            const msg = conv.messages[mIdx];
+            // Stagger message timestamps over the past few days
+            const hoursAgo = (conv.messages.length - mIdx) * 2 + Math.floor(Math.random() * 60);
+            const createdAt = new Date(Date.now() - hoursAgo * 60 * 60 * 1000).toISOString();
+
+            const { error: msgError } = await supabase.from('messages').insert({
+                conversation_id: convId,
+                sender_id: userIds[msg.sender_index],
+                content: msg.content,
+                created_at: createdAt,
+            });
+
+            if (msgError) {
+                console.error('Error creating message:', msgError.message);
+            }
+        }
+
+        console.log(`Created conversation with ${conv.messages.length} messages`);
+    }
+
+    console.log('Created messaging seed data');
+}
+
 async function main() {
     console.log('Starting seed process...\n');
 
@@ -577,6 +679,7 @@ async function main() {
         await seedNotifications(userIds);
         await seedPlanner(userIds);
         await seedTacticBoards(userIds);
+        await seedMessages(userIds);
 
         console.log('\n✅ Seed completed successfully!');
     } catch (error) {
