@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { Lock, ArrowRight, Loader2, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +10,7 @@ import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 
 export default function ResetPasswordPage() {
+  const { t } = useTranslation();
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -50,13 +52,13 @@ export default function ResetPasswordPage() {
     setIsLoading(true);
 
     if (password !== confirmPassword) {
-      toast.error("Passwords do not match");
+      toast.error(t("auth.passwordsDoNotMatch"));
       setIsLoading(false);
       return;
     }
 
     if (password.length < 8) {
-      toast.error("Password must be at least 8 characters");
+      toast.error(t("auth.passwordHint"));
       setIsLoading(false);
       return;
     }
@@ -64,14 +66,14 @@ export default function ResetPasswordPage() {
     const { error } = await supabase.auth.updateUser({ password });
 
     if (error) {
-      toast.error(error.message || "Failed to update password");
+      toast.error(error.message || t("auth.updatePassword"));
       setIsLoading(false);
       return;
     }
 
     setIsSuccess(true);
     setIsLoading(false);
-    toast.success("Password updated successfully!");
+    toast.success(t("auth.passwordUpdatedSuccess"));
   };
 
   // Loading state while checking token
@@ -102,27 +104,27 @@ export default function ResetPasswordPage() {
               </div>
             </Link>
             <h1 className="font-display text-2xl font-bold text-foreground">
-              Invalid Link
+              {t("auth.invalidLink")}
             </h1>
             <p className="text-muted-foreground text-sm mt-1">
-              This password reset link is invalid or has expired
+              {t("auth.invalidLinkDesc")}
             </p>
           </div>
 
           <div className="glass-card p-8 text-center">
             <p className="text-muted-foreground text-sm mb-6">
-              Please request a new password reset link.
+              {t("auth.requestNewLinkDesc")}
             </p>
             <Link to="/forgot-password">
               <Button className="w-full bg-primary text-primary-foreground">
-                Request New Link
+                {t("auth.requestNewLink")}
               </Button>
             </Link>
             <Link
               to="/login"
               className="block mt-4 text-sm text-primary hover:underline"
             >
-              Back to Login
+              {t("auth.backToLogin")}
             </Link>
           </div>
         </motion.div>
@@ -149,10 +151,10 @@ export default function ResetPasswordPage() {
               </div>
             </Link>
             <h1 className="font-display text-2xl font-bold text-foreground">
-              Password Updated
+              {t("auth.passwordUpdated")}
             </h1>
             <p className="text-muted-foreground text-sm mt-1">
-              Your password has been successfully updated
+              {t("auth.passwordUpdatedSuccess")}
             </p>
           </div>
 
@@ -161,11 +163,11 @@ export default function ResetPasswordPage() {
               <CheckCircle className="h-8 w-8 text-green-500" />
             </div>
             <p className="text-muted-foreground text-sm mb-6">
-              You can now sign in with your new password.
+              {t("auth.signInWithNewPassword")}
             </p>
             <Link to="/login">
               <Button className="w-full bg-primary text-primary-foreground">
-                Sign In
+                {t("navigation.signIn")}
               </Button>
             </Link>
           </div>
@@ -191,10 +193,10 @@ export default function ResetPasswordPage() {
             </div>
           </Link>
           <h1 className="font-display text-2xl font-bold text-foreground">
-            Set New Password
+            {t("auth.setNewPassword")}
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
-            Enter your new password below
+            {t("auth.enterNewPassword")}
           </p>
         </div>
 
@@ -202,7 +204,7 @@ export default function ResetPasswordPage() {
           <form className="space-y-5" onSubmit={handleSubmit}>
             <div className="space-y-2">
               <Label htmlFor="password" className="text-foreground">
-                New Password
+                {t("auth.newPassword")}
               </Label>
               <div className="relative">
                 <Lock
@@ -222,13 +224,13 @@ export default function ResetPasswordPage() {
                 />
               </div>
               <p className="text-xs text-muted-foreground">
-                Minimum 8 characters
+                {t("auth.passwordHint")}
               </p>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="confirmPassword" className="text-foreground">
-                Confirm Password
+                {t("auth.confirmPassword")}
               </Label>
               <div className="relative">
                 <Lock
@@ -257,11 +259,11 @@ export default function ResetPasswordPage() {
               {isLoading ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Updating...
+                  {t("auth.updating")}
                 </>
               ) : (
                 <>
-                  Update Password <ArrowRight size={16} />
+                  {t("auth.updatePassword")} <ArrowRight size={16} />
                 </>
               )}
             </Button>

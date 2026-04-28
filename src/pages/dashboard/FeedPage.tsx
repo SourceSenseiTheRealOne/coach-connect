@@ -281,7 +281,7 @@ function PostCard({ post, index }: { post: PostWithAuthor; index: number }) {
       toast({ title: "Please log in to like posts", variant: "destructive" });
       return;
     }
-    toggleLike.mutate({
+    toggleLike.mutateAsync({
       postId: post.id,
       isLiked: !!post.isLikedByMe,
     });
@@ -427,8 +427,21 @@ export default function FeedPage() {
     error,
     refetch,
     isRefetching,
+    isSuccess,
+    status,
   } = useFeedPosts();
   const setupRealtime = useFeedRealtime();
+
+  // Debug logging
+  useEffect(() => {
+    console.log("[FeedPage] React Query state:", {
+      status,
+      isLoading,
+      isSuccess,
+      postsCount: posts?.length,
+      error: error?.message,
+    });
+  }, [status, isLoading, isSuccess, posts, error]);
 
   // Setup real-time subscription
   useEffect(() => {
@@ -471,8 +484,11 @@ export default function FeedPage() {
       {/* Error State */}
       {error && !isLoading && (
         <div className="glass-card p-8 flex flex-col items-center justify-center gap-3">
-          <p className="text-sm text-destructive">
-            Failed to load feed. Please try again.
+          <p className="text-sm text-destructive font-medium">
+            Failed to load feed
+          </p>
+          <p className="text-xs text-muted-foreground text-center max-w-sm">
+            {error instanceof Error ? error.message : "Unknown error occurred"}
           </p>
           <Button variant="outline" size="sm" onClick={() => refetch()}>
             <RefreshCw size={14} className="mr-2" />

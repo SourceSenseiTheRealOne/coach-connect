@@ -11,7 +11,11 @@ const port = process.env.API_PORT || 3001;
 // CORS configuration
 app.use(
     cors({
-        origin: process.env.FRONTEND_URL || "http://localhost:8080",
+        origin: [
+            process.env.FRONTEND_URL || "http://localhost:8080",
+            "http://localhost:8080",
+            /\.railway\.app$/,  // Allow all Railway subdomains
+        ],
         credentials: true,
     })
 );

@@ -1,5 +1,6 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Menu, X, LogOut, User, Loader2, Sun, Moon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -13,17 +14,19 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/lib/auth-context";
 import { useTheme } from "@/lib/theme-context";
+import { LanguageSwitcher } from "@/components/ui/language-switcher";
 import { toast } from "sonner";
 
-const navLinks = [
-  { label: "Home", path: "/" },
-  { label: "About", path: "/about" },
-  { label: "Features", path: "/features" },
-  { label: "Pricing", path: "/pricing" },
-];
-
 export default function Navbar() {
+  const { t } = useTranslation();
   const location = useLocation();
+
+  const navLinks = [
+    { label: t("navigation.home"), path: "/" },
+    { label: t("navigation.about"), path: "/about" },
+    { label: t("navigation.features"), path: "/features" },
+    { label: t("navigation.pricing"), path: "/pricing" },
+  ];
   const [mobileOpen, setMobileOpen] = useState(false);
   const { user, profile, loading, signOut } = useAuth();
   const { theme, toggleTheme } = useTheme();
@@ -32,9 +35,9 @@ export default function Navbar() {
   const handleSignOut = async () => {
     const { error } = await signOut();
     if (error) {
-      toast.error("Failed to sign out");
+      toast.error(t("errors.failedToSignOut"));
     } else {
-      toast.success("Signed out successfully");
+      toast.success(t("common.signingOut"));
       navigate("/");
     }
   };
@@ -90,6 +93,8 @@ export default function Navbar() {
 
         {/* Desktop auth buttons */}
         <div className="hidden md:flex items-center gap-3">
+          {/* Language switcher */}
+          <LanguageSwitcher variant="minimal" />
           {/* Theme toggle */}
           <Button
             variant="ghost"
@@ -127,7 +132,9 @@ export default function Navbar() {
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
                     <p className="text-sm font-medium leading-none">
-                      {profile?.full_name || profile?.username || "User"}
+                      {profile?.full_name ||
+                        profile?.username ||
+                        t("common.user")}
                     </p>
                     <p className="text-xs leading-none text-muted-foreground">
                       {user.email}
@@ -135,16 +142,14 @@ export default function Navbar() {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={() => navigate("/dashboard/profile")}
-                >
+                <DropdownMenuItem onClick={() => navigate("/dashboard")}>
                   <User className="mr-2 h-4 w-4" />
-                  Profile
+                  {t("common.dashboard")}
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => navigate("/dashboard/settings")}
                 >
-                  Settings
+                  {t("navigation.settings")}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
@@ -152,7 +157,7 @@ export default function Navbar() {
                   className="text-red-500"
                 >
                   <LogOut className="mr-2 h-4 w-4" />
-                  Sign out
+                  {t("common.signOut")}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -164,7 +169,7 @@ export default function Navbar() {
                   size="sm"
                   className="text-muted-foreground hover:text-foreground"
                 >
-                  Sign In
+                  {t("navigation.signIn")}
                 </Button>
               </Link>
               <Link to="/signup">
@@ -172,7 +177,7 @@ export default function Navbar() {
                   size="sm"
                   className="bg-primary text-primary-foreground hover:bg-primary/90"
                 >
-                  Get Started
+                  {t("navigation.getStarted")}
                 </Button>
               </Link>
             </>
@@ -216,15 +221,19 @@ export default function Navbar() {
               {theme === "dark" ? (
                 <>
                   <Sun className="h-4 w-4 mr-2" />
-                  Light Mode
+                  {t("common.lightMode")}
                 </>
               ) : (
                 <>
                   <Moon className="h-4 w-4 mr-2" />
-                  Dark Mode
+                  {t("common.darkMode")}
                 </>
               )}
             </Button>
+            {/* Mobile language switcher */}
+            <div className="px-4 py-2">
+              <LanguageSwitcher variant="minimal" />
+            </div>
             <div className="flex gap-2 mt-2 pt-2 border-t border-border">
               {loading ? (
                 <div className="flex-1 flex justify-center py-2">
@@ -242,7 +251,7 @@ export default function Navbar() {
                       size="sm"
                       className="w-full border-border text-foreground"
                     >
-                      Dashboard
+                      {t("common.dashboard")}
                     </Button>
                   </Link>
                   <Button
@@ -254,7 +263,7 @@ export default function Navbar() {
                       handleSignOut();
                     }}
                   >
-                    Sign Out
+                    {t("common.signOut")}
                   </Button>
                 </>
               ) : (
@@ -269,7 +278,7 @@ export default function Navbar() {
                       size="sm"
                       className="w-full border-border text-foreground"
                     >
-                      Sign In
+                      {t("navigation.signIn")}
                     </Button>
                   </Link>
                   <Link
@@ -281,7 +290,7 @@ export default function Navbar() {
                       size="sm"
                       className="w-full bg-primary text-primary-foreground"
                     >
-                      Get Started
+                      {t("navigation.getStarted")}
                     </Button>
                   </Link>
                 </>

@@ -1,21 +1,24 @@
 import { motion } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { Mail, Lock, User, ArrowRight, Loader2, AtSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { toast } from "sonner";
 
-const userTypes = [
-  { value: "coach", label: "Coach", emoji: "⚽" },
-  { value: "club", label: "Club", emoji: "🏟️" },
-  { value: "scout", label: "Scout", emoji: "🔍" },
-  { value: "trainer", label: "Trainer", emoji: "🏋️" },
-];
-
 export default function SignupPage() {
+  const { t } = useTranslation();
+
+  const userTypes = [
+    { value: "coach", label: t("common.coach"), emoji: "⚽" },
+    { value: "club", label: t("common.club"), emoji: "🏟️" },
+    { value: "scout", label: t("common.scout"), emoji: "🔍" },
+    { value: "trainer", label: t("common.trainer"), emoji: "🏋️" },
+  ];
+
   const [selectedType, setSelectedType] = useState("coach");
   const [fullName, setFullName] = useState("");
   const [username, setUsername] = useState("");
@@ -27,8 +30,13 @@ export default function SignupPage() {
   const navigate = useNavigate();
 
   // Redirect if already logged in
+  useEffect(() => {
+    if (!loading && user) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [loading, user, navigate]);
+
   if (!loading && user) {
-    navigate("/dashboard", { replace: true });
     return null;
   }
 
@@ -38,15 +46,13 @@ export default function SignupPage() {
 
     // Validate username format
     if (!/^[a-zA-Z0-9_]+$/.test(username)) {
-      toast.error(
-        "Username can only contain letters, numbers, and underscores",
-      );
+      toast.error(t("auth.usernameHint"));
       setIsLoading(false);
       return;
     }
 
     if (username.length < 3) {
-      toast.error("Username must be at least 3 characters");
+      toast.error(t("auth.passwordHint"));
       setIsLoading(false);
       return;
     }
@@ -58,17 +64,15 @@ export default function SignupPage() {
     });
 
     if (error) {
-      toast.error(error.message || "Failed to create account");
+      toast.error(error.message || t("auth.createAccount"));
       setIsLoading(false);
       return;
     }
 
     if (requiresEmailConfirmation) {
-      toast.success(
-        "Account created! Please check your email to confirm your account.",
-      );
+      toast.success(t("auth.resetLinkSent"));
     } else {
-      toast.success("Account created successfully!");
+      toast.success(t("auth.createAccount"));
     }
     navigate("/login", { replace: true });
   };
@@ -78,7 +82,7 @@ export default function SignupPage() {
     const { error } = await signInWithGoogle();
 
     if (error) {
-      toast.error(error.message || "Failed to sign in with Google");
+      toast.error(error.message || t("auth.google"));
       setIsGoogleLoading(false);
     }
     // OAuth will redirect, so no need to navigate here
@@ -109,10 +113,10 @@ export default function SignupPage() {
             </div>
           </Link>
           <h1 className="font-display text-2xl font-bold text-foreground">
-            Create Account
+            {t("auth.createAccount")}
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
-            Join the Portuguese football community
+            {t("auth.joinCommunity")}
           </p>
         </div>
 
@@ -120,7 +124,7 @@ export default function SignupPage() {
           <form className="space-y-5" onSubmit={handleSubmit}>
             {/* User type selection */}
             <div className="space-y-2">
-              <Label className="text-foreground">I am a...</Label>
+              <Label className="text-foreground">{t("auth.iAmA")}</Label>
               <div className="grid grid-cols-2 gap-2">
                 {userTypes.map((type) => (
                   <button
@@ -142,7 +146,7 @@ export default function SignupPage() {
 
             <div className="space-y-2">
               <Label htmlFor="name" className="text-foreground">
-                Full Name
+                {t("auth.fullName")}
               </Label>
               <div className="relative">
                 <User
@@ -151,7 +155,7 @@ export default function SignupPage() {
                 />
                 <Input
                   id="name"
-                  placeholder="José Mourinho"
+                  placeholder={t("auth.fullNamePlaceholder")}
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   className="pl-10 bg-secondary border-border text-foreground placeholder:text-muted-foreground"
@@ -163,7 +167,7 @@ export default function SignupPage() {
 
             <div className="space-y-2">
               <Label htmlFor="username" className="text-foreground">
-                Username
+                {t("auth.username")}
               </Label>
               <div className="relative">
                 <AtSign
@@ -172,7 +176,7 @@ export default function SignupPage() {
                 />
                 <Input
                   id="username"
-                  placeholder="josemourinho"
+                  placeholder={t("auth.usernamePlaceholder")}
                   value={username}
                   onChange={(e) => setUsername(e.target.value.toLowerCase())}
                   className="pl-10 bg-secondary border-border text-foreground placeholder:text-muted-foreground"
@@ -184,13 +188,13 @@ export default function SignupPage() {
                 />
               </div>
               <p className="text-xs text-muted-foreground">
-                Letters, numbers, and underscores only
+                {t("auth.usernameHint")}
               </p>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="email" className="text-foreground">
-                Email
+                {t("auth.email")}
               </Label>
               <div className="relative">
                 <Mail
@@ -200,7 +204,7 @@ export default function SignupPage() {
                 <Input
                   id="email"
                   type="email"
-                  placeholder="coach@example.com"
+                  placeholder={t("auth.emailPlaceholder")}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="pl-10 bg-secondary border-border text-foreground placeholder:text-muted-foreground"
@@ -212,7 +216,7 @@ export default function SignupPage() {
 
             <div className="space-y-2">
               <Label htmlFor="password" className="text-foreground">
-                Password
+                {t("auth.password")}
               </Label>
               <div className="relative">
                 <Lock
@@ -232,7 +236,7 @@ export default function SignupPage() {
                 />
               </div>
               <p className="text-xs text-muted-foreground">
-                Minimum 8 characters
+                {t("auth.passwordHint")}
               </p>
             </div>
 
@@ -244,11 +248,11 @@ export default function SignupPage() {
               {isLoading ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Creating account...
+                  {t("auth.creatingAccount")}
                 </>
               ) : (
                 <>
-                  Create Account <ArrowRight size={16} />
+                  {t("auth.createAccount")} <ArrowRight size={16} />
                 </>
               )}
             </Button>
@@ -260,7 +264,7 @@ export default function SignupPage() {
             </div>
             <div className="relative flex justify-center text-xs uppercase">
               <span className="bg-card px-2 text-muted-foreground">
-                Or continue with
+                {t("auth.orContinueWith")}
               </span>
             </div>
           </div>
@@ -294,16 +298,16 @@ export default function SignupPage() {
                 />
               </svg>
             )}
-            Google
+            {t("auth.google")}
           </Button>
 
           <div className="mt-6 text-center text-sm text-muted-foreground">
-            Already have an account?{" "}
+            {t("auth.alreadyHaveAccount")}{" "}
             <Link
               to="/login"
               className="text-primary hover:underline font-medium"
             >
-              Sign in
+              {t("navigation.signIn")}
             </Link>
           </div>
         </div>

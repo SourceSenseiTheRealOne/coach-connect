@@ -11,6 +11,11 @@ export default defineConfig(({ mode }) => ({
       overlay: false,
     },
   },
+  preview: {
+    host: "::",
+    port: 8080,
+    allowedHosts: ['.railway.app'], // Allow Railway domains
+  },
   plugins: [react()],
   resolve: {
     alias: {

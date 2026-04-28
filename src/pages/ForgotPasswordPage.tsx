@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { Mail, ArrowRight, Loader2, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +10,7 @@ import { useAuth } from "@/lib/auth-context";
 import { toast } from "sonner";
 
 export default function ForgotPasswordPage() {
+  const { t } = useTranslation();
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
@@ -21,7 +23,7 @@ export default function ForgotPasswordPage() {
     const { error } = await resetPassword(email);
 
     if (error) {
-      toast.error(error.message || "Failed to send reset email");
+      toast.error(error.message || t("auth.resetPassword"));
       setIsLoading(false);
       return;
     }
@@ -48,10 +50,10 @@ export default function ForgotPasswordPage() {
               </div>
             </Link>
             <h1 className="font-display text-2xl font-bold text-foreground">
-              Check Your Email
+              {t("auth.checkYourEmail")}
             </h1>
             <p className="text-muted-foreground text-sm mt-1">
-              We've sent a password reset link to <strong>{email}</strong>
+              {t("auth.resetLinkSent")} <strong>{email}</strong>
             </p>
           </div>
 
@@ -60,21 +62,20 @@ export default function ForgotPasswordPage() {
               <Mail className="h-8 w-8 text-primary" />
             </div>
             <p className="text-muted-foreground text-sm mb-6">
-              Didn't receive the email? Check your spam folder or try again with
-              a different email address.
+              {t("auth.didntReceiveEmail")}
             </p>
             <Button
               variant="outline"
               className="w-full"
               onClick={() => setEmailSent(false)}
             >
-              Try Again
+              {t("common.tryAgain")}
             </Button>
             <Link
               to="/login"
               className="block mt-4 text-sm text-primary hover:underline"
             >
-              Back to Login
+              {t("auth.backToLogin")}
             </Link>
           </div>
         </motion.div>
@@ -99,10 +100,10 @@ export default function ForgotPasswordPage() {
             </div>
           </Link>
           <h1 className="font-display text-2xl font-bold text-foreground">
-            Reset Password
+            {t("auth.resetPassword")}
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
-            Enter your email and we'll send you a reset link
+            {t("auth.enterEmail")}
           </p>
         </div>
 
@@ -110,7 +111,7 @@ export default function ForgotPasswordPage() {
           <form className="space-y-5" onSubmit={handleSubmit}>
             <div className="space-y-2">
               <Label htmlFor="email" className="text-foreground">
-                Email
+                {t("auth.email")}
               </Label>
               <div className="relative">
                 <Mail
@@ -120,7 +121,7 @@ export default function ForgotPasswordPage() {
                 <Input
                   id="email"
                   type="email"
-                  placeholder="coach@example.com"
+                  placeholder={t("auth.emailPlaceholder")}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="pl-10 bg-secondary border-border text-foreground placeholder:text-muted-foreground focus:ring-primary"
@@ -138,11 +139,11 @@ export default function ForgotPasswordPage() {
               {isLoading ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Sending...
+                  {t("auth.sending")}
                 </>
               ) : (
                 <>
-                  Send Reset Link <ArrowRight size={16} />
+                  {t("auth.sendResetLink")} <ArrowRight size={16} />
                 </>
               )}
             </Button>
@@ -154,7 +155,7 @@ export default function ForgotPasswordPage() {
               className="text-sm text-muted-foreground hover:text-primary flex items-center justify-center gap-1"
             >
               <ArrowLeft size={14} />
-              Back to Login
+              {t("auth.backToLogin")}
             </Link>
           </div>
         </div>

@@ -32,3 +32,5 @@ memory-bank/
 *.njsproj
 *.sln
 *.sw?
+.gitnexus
+.claude 

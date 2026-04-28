@@ -1,14 +1,16 @@
 import { motion } from "framer-motion";
 import { Link, useNavigate, useLocation } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { Mail, Lock, ArrowRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { toast } from "sonner";
 
 export default function LoginPage() {
+  const { t } = useTranslation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -22,8 +24,13 @@ export default function LoginPage() {
     (location.state as { from?: { pathname: string } })?.from?.pathname ||
     "/dashboard";
 
+  useEffect(() => {
+    if (!loading && user) {
+      navigate(from, { replace: true });
+    }
+  }, [loading, user, navigate, from]);
+
   if (!loading && user) {
-    navigate(from, { replace: true });
     return null;
   }
 
@@ -34,12 +41,12 @@ export default function LoginPage() {
     const { error } = await signIn(email, password);
 
     if (error) {
-      toast.error(error.message || "Failed to sign in");
+      toast.error(error.message || t("auth.signInButton"));
       setIsLoading(false);
       return;
     }
 
-    toast.success("Signed in successfully!");
+    toast.success(t("auth.signInButton"));
     navigate(from, { replace: true });
   };
 
@@ -48,7 +55,7 @@ export default function LoginPage() {
     const { error } = await signInWithGoogle();
 
     if (error) {
-      toast.error(error.message || "Failed to sign in with Google");
+      toast.error(error.message || t("auth.signInButton"));
       setIsGoogleLoading(false);
     }
     // OAuth will redirect, so no need to navigate here
@@ -79,10 +86,10 @@ export default function LoginPage() {
             </div>
           </Link>
           <h1 className="font-display text-2xl font-bold text-foreground">
-            Welcome Back
+            {t("auth.welcomeBack")}
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
-            Sign in to your Elite-Connect account
+            {t("auth.signInToAccount")}
           </p>
         </div>
 
@@ -90,7 +97,7 @@ export default function LoginPage() {
           <form className="space-y-5" onSubmit={handleSubmit}>
             <div className="space-y-2">
               <Label htmlFor="email" className="text-foreground">
-                Email
+                {t("auth.email")}
               </Label>
               <div className="relative">
                 <Mail
@@ -100,7 +107,7 @@ export default function LoginPage() {
                 <Input
                   id="email"
                   type="email"
-                  placeholder="coach@example.com"
+                  placeholder={t("auth.emailPlaceholder")}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="pl-10 bg-secondary border-border text-foreground placeholder:text-muted-foreground focus:ring-primary"
@@ -113,13 +120,13 @@ export default function LoginPage() {
             <div className="space-y-2">
               <div className="flex justify-between items-center">
                 <Label htmlFor="password" className="text-foreground">
-                  Password
+                  {t("auth.password")}
                 </Label>
                 <Link
                   to="/forgot-password"
                   className="text-xs text-primary hover:underline"
                 >
-                  Forgot password?
+                  {t("auth.forgotPassword")}
                 </Link>
               </div>
               <div className="relative">
@@ -148,11 +155,11 @@ export default function LoginPage() {
               {isLoading ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Signing in...
+                  {t("auth.signingIn")}
                 </>
               ) : (
                 <>
-                  Sign In <ArrowRight size={16} />
+                  {t("auth.signInButton")} <ArrowRight size={16} />
                 </>
               )}
             </Button>
@@ -164,7 +171,7 @@ export default function LoginPage() {
             </div>
             <div className="relative flex justify-center text-xs uppercase">
               <span className="bg-card px-2 text-muted-foreground">
-                Or continue with
+                {t("auth.orContinueWith")}
               </span>
             </div>
           </div>
@@ -198,16 +205,16 @@ export default function LoginPage() {
                 />
               </svg>
             )}
-            Google
+            {t("auth.google")}
           </Button>
 
           <div className="mt-6 text-center text-sm text-muted-foreground">
-            Don't have an account?{" "}
+            {t("auth.noAccount")}{" "}
             <Link
               to="/signup"
               className="text-primary hover:underline font-medium"
             >
-              Sign up
+              {t("auth.createAccount")}
             </Link>
           </div>
         </div>

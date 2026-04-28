@@ -1,84 +1,96 @@
 import { motion } from "framer-motion";
+import { useTranslation } from "react-i18next";
 import { Check, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 
-const plans = [
-  {
-    name: "Free",
-    price: "€0",
-    period: "forever",
-    desc: "Get started with essential coaching tools.",
-    features: [
-      { text: "Community feed access", included: true },
-      { text: "Basic tactic board", included: true },
-      { text: "Free exercises only", included: true },
-      { text: "2-week planner", included: true },
-      { text: "1 exercise submission/year", included: true },
-      { text: "Premium exercises", included: false },
-      { text: "Animated tactic board", included: false },
-      { text: "Verified badge", included: false },
-    ],
-    cta: "Start Free",
-    popular: false,
-  },
-  {
-    name: "Premium Coach",
-    price: "€7.99",
-    period: "/month",
-    desc: "Unlock the full coaching toolkit.",
-    features: [
-      { text: "Everything in Free", included: true },
-      { text: "Premium exercises access", included: true },
-      { text: "Full season planner", included: true },
-      { text: "Animated tactic board + 5 saves", included: true },
-      { text: "Unlimited exercise submissions", included: true },
-      { text: "Verified profile badge", included: true },
-      { text: "National calendar access", included: true },
-      { text: "Match Maker", included: true },
-    ],
-    cta: "Go Premium",
-    popular: true,
-  },
-  {
-    name: "Pro Service",
-    price: "€12.99",
-    period: "/month",
-    desc: "For coaches offering professional services.",
-    features: [
-      { text: "Everything in Premium", included: true },
-      { text: "Marketplace listing", included: true },
-      { text: "Profile analytics", included: true },
-      { text: "Featured profile", included: true },
-      { text: "Priority support", included: true },
-      { text: "Club multi-user", included: false },
-      { text: "Post vacancies", included: false },
-      { text: "Internal club tools", included: false },
-    ],
-    cta: "Go Pro",
-    popular: false,
-  },
-  {
-    name: "Club License",
-    price: "€59.99",
-    period: "/year",
-    desc: "Full platform access for your entire club.",
-    features: [
-      { text: "Everything in Premium", included: true },
-      { text: "Up to 10 sub-accounts", included: true },
-      { text: "Internal club tools", included: true },
-      { text: "Post job vacancies", included: true },
-      { text: "Webshop link on profile", included: true },
-      { text: "Profile analytics", included: true },
-      { text: "Priority support", included: true },
-      { text: "Custom branding", included: true },
-    ],
-    cta: "Get Club License",
-    popular: false,
-  },
-];
-
 export default function PricingPage() {
+  const { t } = useTranslation();
+
+  const plans = [
+    {
+      name: t("pricing.plans.free"),
+      price: "€0",
+      period: t("pricing.period.forever"),
+      desc: t("pricing.features.free.desc"),
+      features: [
+        { text: t("pricing.features.free.communityFeed"), included: true },
+        { text: t("pricing.features.free.basicTactic"), included: true },
+        { text: t("pricing.features.free.freeExercises"), included: true },
+        { text: t("pricing.features.free.twoWeekPlanner"), included: true },
+        { text: t("pricing.features.free.oneSubmission"), included: true },
+        {
+          text: t("pricing.features.premium.premiumExercises"),
+          included: false,
+        },
+        { text: t("pricing.features.premium.animatedBoard"), included: false },
+        { text: t("pricing.features.premium.verifiedBadge"), included: false },
+      ],
+      cta: t("pricing.cta.startFree"),
+      popular: false,
+    },
+    {
+      name: t("pricing.plans.premium"),
+      price: "€7.99",
+      period: t("pricing.period.month"),
+      desc: t("pricing.features.premium.desc"),
+      features: [
+        { text: t("pricing.features.premium.everythingFree"), included: true },
+        {
+          text: t("pricing.features.premium.premiumExercises"),
+          included: true,
+        },
+        { text: t("pricing.features.premium.fullPlanner"), included: true },
+        { text: t("pricing.features.premium.animatedBoard"), included: true },
+        {
+          text: t("pricing.features.premium.unlimitedSubmissions"),
+          included: true,
+        },
+        { text: t("pricing.features.premium.verifiedBadge"), included: true },
+        { text: t("pricing.features.premium.calendarAccess"), included: true },
+        { text: t("pricing.features.premium.matchMaker"), included: true },
+      ],
+      cta: t("pricing.cta.goPremium"),
+      popular: true,
+    },
+    {
+      name: t("pricing.plans.pro"),
+      price: "€12.99",
+      period: t("pricing.period.month"),
+      desc: t("pricing.features.pro.desc"),
+      features: [
+        { text: t("pricing.features.pro.everythingPremium"), included: true },
+        { text: t("pricing.features.pro.marketplaceListing"), included: true },
+        { text: t("pricing.features.pro.profileAnalytics"), included: true },
+        { text: t("pricing.features.pro.featuredProfile"), included: true },
+        { text: t("pricing.features.pro.prioritySupport"), included: true },
+        { text: t("pricing.features.club.subAccounts"), included: false },
+        { text: t("pricing.features.club.postVacancies"), included: false },
+        { text: t("pricing.features.club.clubTools"), included: false },
+      ],
+      cta: t("pricing.cta.goPro"),
+      popular: false,
+    },
+    {
+      name: t("pricing.plans.club"),
+      price: "€59.99",
+      period: t("pricing.period.year"),
+      desc: t("pricing.features.club.desc"),
+      features: [
+        { text: t("pricing.features.club.everythingPremium"), included: true },
+        { text: t("pricing.features.club.subAccounts"), included: true },
+        { text: t("pricing.features.club.clubTools"), included: true },
+        { text: t("pricing.features.club.postVacancies"), included: true },
+        { text: t("pricing.features.club.webshopLink"), included: true },
+        { text: t("pricing.features.pro.profileAnalytics"), included: true },
+        { text: t("pricing.features.pro.prioritySupport"), included: true },
+        { text: "Custom branding", included: true },
+      ],
+      cta: t("pricing.cta.getLicense"),
+      popular: false,
+    },
+  ];
+
   return (
     <div className="py-24">
       <div className="container mx-auto px-4">
@@ -88,13 +100,14 @@ export default function PricingPage() {
           animate={{ opacity: 1, y: 0 }}
         >
           <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-primary/30 bg-primary/10 text-primary text-sm mb-6">
-            Pricing
+            {t("pricing.badge")}
           </span>
           <h1 className="font-display text-4xl sm:text-5xl font-bold mb-6 text-foreground">
-            Plans That Fit Your <span className="gradient-text">Ambition</span>
+            {t("pricing.title")}{" "}
+            <span className="gradient-text">{t("pricing.titleHighlight")}</span>
           </h1>
           <p className="text-lg text-muted-foreground">
-            Start free, upgrade when ready. Every plan is crafted for real football professionals.
+            {t("pricing.description")}
           </p>
         </motion.div>
 
@@ -112,13 +125,19 @@ export default function PricingPage() {
             >
               {plan.popular && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-primary text-primary-foreground text-xs font-semibold">
-                  Most Popular
+                  {t("pricing.mostPopular")}
                 </div>
               )}
-              <h3 className="font-display font-semibold text-foreground text-lg">{plan.name}</h3>
+              <h3 className="font-display font-semibold text-foreground text-lg">
+                {plan.name}
+              </h3>
               <div className="mt-3 mb-1">
-                <span className="font-display text-3xl font-bold text-foreground">{plan.price}</span>
-                <span className="text-muted-foreground text-sm">{plan.period}</span>
+                <span className="font-display text-3xl font-bold text-foreground">
+                  {plan.price}
+                </span>
+                <span className="text-muted-foreground text-sm">
+                  {plan.period}
+                </span>
               </div>
               <p className="text-sm text-muted-foreground mb-6">{plan.desc}</p>
 
@@ -128,9 +147,18 @@ export default function PricingPage() {
                     {f.included ? (
                       <Check size={16} className="text-primary shrink-0" />
                     ) : (
-                      <X size={16} className="text-muted-foreground/40 shrink-0" />
+                      <X
+                        size={16}
+                        className="text-muted-foreground/40 shrink-0"
+                      />
                     )}
-                    <span className={f.included ? "text-foreground" : "text-muted-foreground/40"}>
+                    <span
+                      className={
+                        f.included
+                          ? "text-foreground"
+                          : "text-muted-foreground/40"
+                      }
+                    >
                       {f.text}
                     </span>
                   </div>

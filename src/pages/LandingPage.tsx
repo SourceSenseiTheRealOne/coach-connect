@@ -1,32 +1,73 @@
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowRight, Users, BookOpen, MessageSquare, Trophy, Target, Calendar } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import {
+  ArrowRight,
+  Users,
+  BookOpen,
+  MessageSquare,
+  Trophy,
+  Target,
+  Calendar,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { WelcomeModal } from "@/components/WelcomeModal";
 import heroBg from "@/assets/hero-bg.jpg";
 
-const features = [
-  { icon: BookOpen, title: "Drill Library", desc: "Browse 1000+ exercises organized by category, age group and difficulty." },
-  { icon: Target, title: "Tactic Board", desc: "Design formations and animated plays with our interactive canvas." },
-  { icon: Calendar, title: "Season Planner", desc: "Plan your entire season with drag-and-drop training sessions." },
-  { icon: Users, title: "Network", desc: "Connect with coaches, clubs, and scouts across Portugal." },
-  { icon: MessageSquare, title: "Messaging", desc: "Real-time private messaging with your professional network." },
-  { icon: Trophy, title: "Job Board", desc: "Find coaching positions or post vacancies for your club." },
-];
-
-const stats = [
-  { value: "5,000+", label: "Coaches" },
-  { value: "800+", label: "Clubs" },
-  { value: "12,000+", label: "Exercises" },
-  { value: "200+", label: "Scouts" },
-];
-
 export default function LandingPage() {
+  const { t } = useTranslation();
+
+  const features = [
+    {
+      icon: BookOpen,
+      title: t("landing.features.drillLibrary"),
+      desc: t("landing.features.drillLibraryDesc"),
+    },
+    {
+      icon: Target,
+      title: t("landing.features.tacticBoard"),
+      desc: t("landing.features.tacticBoardDesc"),
+    },
+    {
+      icon: Calendar,
+      title: t("landing.features.seasonPlanner"),
+      desc: t("landing.features.seasonPlannerDesc"),
+    },
+    {
+      icon: Users,
+      title: t("landing.features.network"),
+      desc: t("landing.features.networkDesc"),
+    },
+    {
+      icon: MessageSquare,
+      title: t("landing.features.messaging"),
+      desc: t("landing.features.messagingDesc"),
+    },
+    {
+      icon: Trophy,
+      title: t("landing.features.jobBoard"),
+      desc: t("landing.features.jobBoardDesc"),
+    },
+  ];
+
+  const stats = [
+    { value: "5,000+", label: t("landing.stats.coaches") },
+    { value: "800+", label: t("landing.stats.clubs") },
+    { value: "12,000+", label: t("landing.stats.exercises") },
+    { value: "200+", label: t("landing.stats.scouts") },
+  ];
+
   return (
     <div>
+      <WelcomeModal />
       {/* Hero */}
       <section className="relative min-h-[90vh] flex items-center overflow-hidden">
         <div className="absolute inset-0">
-          <img src={heroBg} alt="" className="w-full h-full object-cover opacity-30" />
+          <img
+            src={heroBg}
+            alt=""
+            className="w-full h-full object-cover opacity-30"
+          />
           <div className="absolute inset-0 bg-gradient-to-b from-background/80 via-background/60 to-background" />
         </div>
 
@@ -39,7 +80,7 @@ export default function LandingPage() {
             >
               <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-primary/30 bg-primary/10 text-primary text-sm mb-6">
                 <span className="glow-dot" />
-                The #1 Platform for Football Coaches in Portugal
+                {t("landing.badge")}
               </span>
             </motion.div>
 
@@ -49,9 +90,11 @@ export default function LandingPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.1 }}
             >
-              The Technical{" "}
-              <span className="gradient-text">Heart</span>{" "}
-              of Portuguese Football
+              {t("landing.title")}{" "}
+              <span className="gradient-text">
+                {t("landing.titleHighlight")}
+              </span>{" "}
+              {t("landing.titleEnd")}
             </motion.h1>
 
             <motion.p
@@ -60,7 +103,7 @@ export default function LandingPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.2 }}
             >
-              Drills, tactics, networking, and career opportunities — all in one platform built exclusively for football professionals.
+              {t("landing.description")}
             </motion.p>
 
             <motion.div
@@ -70,13 +113,20 @@ export default function LandingPage() {
               transition={{ duration: 0.8, delay: 0.3 }}
             >
               <Link to="/signup">
-                <Button size="lg" className="bg-primary text-primary-foreground hover:bg-primary/90 gap-2 text-base px-8">
-                  Start Free <ArrowRight size={18} />
+                <Button
+                  size="lg"
+                  className="bg-primary text-primary-foreground hover:bg-primary/90 gap-2 text-base px-8"
+                >
+                  {t("landing.startFree")} <ArrowRight size={18} />
                 </Button>
               </Link>
               <Link to="/features">
-                <Button size="lg" variant="outline" className="border-border text-foreground hover:bg-secondary text-base px-8">
-                  Explore Features
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="border-border text-foreground hover:bg-secondary text-base px-8"
+                >
+                  {t("landing.exploreFeatures")}
                 </Button>
               </Link>
             </motion.div>
@@ -97,8 +147,12 @@ export default function LandingPage() {
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
               >
-                <div className="font-display text-3xl sm:text-4xl font-bold gradient-text mb-1">{stat.value}</div>
-                <div className="text-muted-foreground text-sm">{stat.label}</div>
+                <div className="font-display text-3xl sm:text-4xl font-bold gradient-text mb-1">
+                  {stat.value}
+                </div>
+                <div className="text-muted-foreground text-sm">
+                  {stat.label}
+                </div>
               </motion.div>
             ))}
           </div>
@@ -115,10 +169,13 @@ export default function LandingPage() {
             viewport={{ once: true }}
           >
             <h2 className="font-display text-3xl sm:text-4xl font-bold mb-4">
-              Everything You Need to <span className="gradient-text">Excel</span>
+              {t("landing.features.title")}{" "}
+              <span className="gradient-text">
+                {t("landing.features.titleHighlight")}
+              </span>
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
-              From training preparation to career advancement — Elite-Connect covers every aspect of your coaching journey.
+              {t("landing.features.description")}
             </p>
           </motion.div>
 
@@ -135,7 +192,9 @@ export default function LandingPage() {
                 <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
                   <feat.icon className="text-primary" size={24} />
                 </div>
-                <h3 className="font-display font-semibold text-lg mb-2 text-foreground">{feat.title}</h3>
+                <h3 className="font-display font-semibold text-lg mb-2 text-foreground">
+                  {feat.title}
+                </h3>
                 <p className="text-muted-foreground text-sm">{feat.desc}</p>
               </motion.div>
             ))}
@@ -155,14 +214,17 @@ export default function LandingPage() {
             <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-accent/10" />
             <div className="relative z-10">
               <h2 className="font-display text-3xl sm:text-4xl font-bold mb-4 text-foreground">
-                Ready to Elevate Your Coaching?
+                {t("landing.cta.title")}
               </h2>
               <p className="text-muted-foreground mb-8 max-w-xl mx-auto">
-                Join thousands of Portuguese football professionals who trust Elite-Connect for their daily workflow.
+                {t("landing.cta.description")}
               </p>
               <Link to="/signup">
-                <Button size="lg" className="bg-primary text-primary-foreground hover:bg-primary/90 gap-2 text-base px-8">
-                  Create Free Account <ArrowRight size={18} />
+                <Button
+                  size="lg"
+                  className="bg-primary text-primary-foreground hover:bg-primary/90 gap-2 text-base px-8"
+                >
+                  {t("landing.cta.button")} <ArrowRight size={18} />
                 </Button>
               </Link>
             </div>

@@ -1,78 +1,92 @@
 import { motion } from "framer-motion";
-import { BookOpen, Target, Calendar, Users, MessageSquare, Trophy, BarChart3, ShoppingBag, Shield, Zap } from "lucide-react";
-
-const features = [
-  {
-    icon: BookOpen,
-    title: "Exercise Library",
-    desc: "Browse and share 1000+ drills organized by category (passing, shooting, tactical, etc.), age group, and difficulty. Premium members unlock advanced exercises.",
-    tag: "Technical Hub",
-  },
-  {
-    icon: Target,
-    title: "Interactive Tactic Board",
-    desc: "Design formations, draw movement arrows, and create animated tactical sequences. Save and share your boards with your team.",
-    tag: "Technical Hub",
-  },
-  {
-    icon: Calendar,
-    title: "Season Planner",
-    desc: "Plan weeks, months, or entire seasons. Drag-and-drop exercises into training sessions with built-in periodization support.",
-    tag: "Technical Hub",
-  },
-  {
-    icon: Users,
-    title: "Professional Network",
-    desc: "Build your coaching profile, connect with peers, follow clubs, and grow your professional reputation in Portuguese football.",
-    tag: "Network",
-  },
-  {
-    icon: MessageSquare,
-    title: "Real-Time Messaging",
-    desc: "Instant messaging with coaches, clubs, and scouts. Share exercises, tactics, and opportunities directly.",
-    tag: "Network",
-  },
-  {
-    icon: Trophy,
-    title: "Job Board & Vacancies",
-    desc: "Clubs post coaching vacancies, scouts discover talent — find your next opportunity or the perfect candidate.",
-    tag: "Network",
-  },
-  {
-    icon: ShoppingBag,
-    title: "Marketplace",
-    desc: "Offer private training, video analysis, consulting, and scouting services. Built-in payments via Stripe.",
-    tag: "Marketplace",
-  },
-  {
-    icon: BarChart3,
-    title: "Profile Analytics",
-    desc: "Track profile views, engagement metrics, and see who's looking at your coaching portfolio.",
-    tag: "Pro Feature",
-  },
-  {
-    icon: Shield,
-    title: "Verified Profiles",
-    desc: "Premium coaches get a verified badge, boosting credibility and visibility in search results.",
-    tag: "Premium",
-  },
-  {
-    icon: Zap,
-    title: "Match Maker",
-    desc: "Request and organize friendly matches between teams. Auto-publishes to the national match calendar.",
-    tag: "Network",
-  },
-];
-
-const tagColors: Record<string, string> = {
-  "Technical Hub": "bg-primary/10 text-primary",
-  "Network": "bg-blue-500/10 text-blue-400",
-  "Marketplace": "bg-amber-500/10 text-amber-400",
-  "Pro Feature": "bg-purple-500/10 text-purple-400",
-  "Premium": "bg-primary/10 text-primary",
-};
+import { useTranslation } from "react-i18next";
+import {
+  BookOpen,
+  Target,
+  Calendar,
+  Users,
+  MessageSquare,
+  Trophy,
+  BarChart3,
+  ShoppingBag,
+  Shield,
+  Zap,
+} from "lucide-react";
 
 export default function FeaturesPage() {
+  const { t } = useTranslation();
+
+  const features = [
+    {
+      icon: BookOpen,
+      title: t("features.list.exerciseLibrary"),
+      desc: t("features.list.exerciseLibraryDesc"),
+      tag: t("features.tags.technicalHub"),
+    },
+    {
+      icon: Target,
+      title: t("features.list.tacticBoard"),
+      desc: t("features.list.tacticBoardDesc"),
+      tag: t("features.tags.technicalHub"),
+    },
+    {
+      icon: Calendar,
+      title: t("features.list.seasonPlanner"),
+      desc: t("features.list.seasonPlannerDesc"),
+      tag: t("features.tags.technicalHub"),
+    },
+    {
+      icon: Users,
+      title: t("features.list.network"),
+      desc: t("features.list.networkDesc"),
+      tag: t("features.tags.network"),
+    },
+    {
+      icon: MessageSquare,
+      title: t("features.list.messaging"),
+      desc: t("features.list.messagingDesc"),
+      tag: t("features.tags.network"),
+    },
+    {
+      icon: Trophy,
+      title: t("features.list.jobBoard"),
+      desc: t("features.list.jobBoardDesc"),
+      tag: t("features.tags.network"),
+    },
+    {
+      icon: ShoppingBag,
+      title: t("features.list.marketplace"),
+      desc: t("features.list.marketplaceDesc"),
+      tag: t("features.tags.marketplace"),
+    },
+    {
+      icon: BarChart3,
+      title: t("features.list.analytics"),
+      desc: t("features.list.analyticsDesc"),
+      tag: t("features.tags.proFeature"),
+    },
+    {
+      icon: Shield,
+      title: t("features.list.verified"),
+      desc: t("features.list.verifiedDesc"),
+      tag: t("features.tags.premium"),
+    },
+    {
+      icon: Zap,
+      title: t("features.list.matchMaker"),
+      desc: t("features.list.matchMakerDesc"),
+      tag: t("features.tags.network"),
+    },
+  ];
+
+  const tagColors: Record<string, string> = {
+    [t("features.tags.technicalHub")]: "bg-primary/10 text-primary",
+    [t("features.tags.network")]: "bg-blue-500/10 text-blue-400",
+    [t("features.tags.marketplace")]: "bg-amber-500/10 text-amber-400",
+    [t("features.tags.proFeature")]: "bg-purple-500/10 text-purple-400",
+    [t("features.tags.premium")]: "bg-primary/10 text-primary",
+  };
+
   return (
     <div className="py-24">
       <div className="container mx-auto px-4">
@@ -82,14 +96,16 @@ export default function FeaturesPage() {
           animate={{ opacity: 1, y: 0 }}
         >
           <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-primary/30 bg-primary/10 text-primary text-sm mb-6">
-            Features
+            {t("features.badge")}
           </span>
           <h1 className="font-display text-4xl sm:text-5xl font-bold mb-6 text-foreground">
-            Tools Built for{" "}
-            <span className="gradient-text">Real Coaches</span>
+            {t("features.title")}{" "}
+            <span className="gradient-text">
+              {t("features.titleHighlight")}
+            </span>
           </h1>
           <p className="text-lg text-muted-foreground">
-            Every feature is designed around the daily workflow of football professionals — from session planning to career development.
+            {t("features.description")}
           </p>
         </motion.div>
 
@@ -107,12 +123,18 @@ export default function FeaturesPage() {
                 <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
                   <feat.icon className="text-primary" size={20} />
                 </div>
-                <span className={`text-xs px-2 py-1 rounded-full ${tagColors[feat.tag] || "bg-muted text-muted-foreground"}`}>
+                <span
+                  className={`text-xs px-2 py-1 rounded-full ${tagColors[feat.tag] || "bg-muted text-muted-foreground"}`}
+                >
                   {feat.tag}
                 </span>
               </div>
-              <h3 className="font-display font-semibold text-foreground mb-2">{feat.title}</h3>
-              <p className="text-sm text-muted-foreground flex-1">{feat.desc}</p>
+              <h3 className="font-display font-semibold text-foreground mb-2">
+                {feat.title}
+              </h3>
+              <p className="text-sm text-muted-foreground flex-1">
+                {feat.desc}
+              </p>
             </motion.div>
           ))}
         </div>
