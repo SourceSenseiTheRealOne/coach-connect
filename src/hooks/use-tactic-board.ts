@@ -1,8 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { trpc } from "@/lib/trpc";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
-import { useCallback, useRef } from "react";
 import type { TacticBoard } from "@/shared/types";
+import { useCallback, useRef } from "react";
 
 // ============================================================
 // TYPES
@@ -180,54 +181,17 @@ const tacticBoardKeys = {
 export function useTacticBoards() {
     const { user } = useAuth();
 
-    return useQuery({
-        queryKey: tacticBoardKeys.lists(),
-        queryFn: async (): Promise<TacticBoard[]> => {
-            if (!user) return [];
-
-            const { data, error } = await supabase
-                .from("tactic_boards")
-                .select("*")
-                .eq("owner_id", user.id)
-                .order("updated_at", { ascending: false });
-
-            if (error) {
-                console.error("Error fetching tactic boards:", error);
-                return [];
-            }
-
-            return (data || []) as TacticBoard[];
-        },
+    return trpc.tacticBoard.list.useQuery(undefined, {
         enabled: !!user,
         staleTime: 30 * 1000,
     });
 }
-
 /**
  * Hook to fetch a single tactic board by ID
  */
 export function useTacticBoard(id: string | null) {
-    const { user } = useAuth();
-
-    return useQuery({
-        queryKey: tacticBoardKeys.detail(id || ""),
-        queryFn: async (): Promise<TacticBoard | null> => {
-            if (!id || !user) return null;
-
-            const { data, error } = await supabase
-                .from("tactic_boards")
-                .select("*")
-                .eq("id", id)
-                .single();
-
-            if (error) {
-                console.error("Error fetching tactic board:", error);
-                return null;
-            }
-
-            return data as TacticBoard;
-        },
-        enabled: !!id && !!user,
+    return trpc.tacticBoard.getById.useQuery(id || "", {
+        enabled: !!id,
         staleTime: 30 * 1000,
     });
 }
@@ -237,27 +201,8 @@ export function useTacticBoard(id: string | null) {
  */
 export function useCreateTacticBoard() {
     const queryClient = useQueryClient();
-    const { user } = useAuth();
 
-    return useMutation({
-        mutationFn: async (input: { title: string; board_data: BoardData }) => {
-            if (!user) throw new Error("Must be logged in");
-
-            const { data, error } = await supabase
-                .from("tactic_boards")
-                .insert({
-                    owner_id: user.id,
-                    title: input.title,
-                    board_data: input.board_data as unknown as Record<string, unknown>,
-                    animation_data: null,
-                    thumbnail_url: null,
-                })
-                .select()
-                .single();
-
-            if (error) throw error;
-            return data as TacticBoard;
-        },
+    return trpc.tacticBoard.create.useMutation({
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: tacticBoardKeys.all });
         },
@@ -269,30 +214,11 @@ export function useCreateTacticBoard() {
  */
 export function useUpdateTacticBoard() {
     const queryClient = useQueryClient();
-    const { user } = useAuth();
 
-    return useMutation({
-        mutationFn: async (input: { id: string; title?: string; board_data?: BoardData }) => {
-            if (!user) throw new Error("Must be logged in");
-
-            const updates: Record<string, unknown> = {};
-            if (input.title !== undefined) updates.title = input.title;
-            if (input.board_data !== undefined) updates.board_data = input.board_data;
-
-            const { data, error } = await supabase
-                .from("tactic_boards")
-                .update(updates)
-                .eq("id", input.id)
-                .eq("owner_id", user.id)
-                .select()
-                .single();
-
-            if (error) throw error;
-            return data as TacticBoard;
-        },
-        onSuccess: (_data, variables) => {
+    return trpc.tacticBoard.update.useMutation({
+        onSuccess: (data) => {
             queryClient.invalidateQueries({ queryKey: tacticBoardKeys.all });
-            queryClient.invalidateQueries({ queryKey: tacticBoardKeys.detail(variables.id) });
+            queryClient.invalidateQueries({ queryKey: tacticBoardKeys.detail(data.id) });
         },
     });
 }
@@ -302,64 +228,8 @@ export function useUpdateTacticBoard() {
  */
 export function useDeleteTacticBoard() {
     const queryClient = useQueryClient();
-    const { user } = useAuth();
 
-    return useMutation({
-        mutationFn: async (id: string) => {
-            if (!user) throw new Error("Must be logged in");
-
-            const { error } = await supabase
-                .from("tactic_boards")
-                .delete()
-                .eq("id", id)
-                .eq("owner_id", user.id);
-
-            if (error) throw error;
-            return id;
-        },
-        onSuccess: (id) => {
-            queryClient.invalidateQueries({ queryKey: tacticBoardKeys.all });
-            queryClient.invalidateQueries({ queryKey: tacticBoardKeys.detail(id) });
-        },
-    });
-}
-
-/**
- * Hook to duplicate a tactic board
- */
-export function useDuplicateTacticBoard() {
-    const queryClient = useQueryClient();
-    const { user } = useAuth();
-
-    return useMutation({
-        mutationFn: async (id: string) => {
-            if (!user) throw new Error("Must be logged in");
-
-            // Fetch the original
-            const { data: original, error: fetchError } = await supabase
-                .from("tactic_boards")
-                .select("*")
-                .eq("id", id)
-                .single();
-
-            if (fetchError || !original) throw fetchError || new Error("Board not found");
-
-            // Create a copy
-            const { data, error } = await supabase
-                .from("tactic_boards")
-                .insert({
-                    owner_id: user.id,
-                    title: `${original.title} (Copy)`,
-                    board_data: original.board_data,
-                    animation_data: original.animation_data,
-                    thumbnail_url: original.thumbnail_url,
-                })
-                .select()
-                .single();
-
-            if (error) throw error;
-            return data as TacticBoard;
-        },
+    return trpc.tacticBoard.delete.useMutation({
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: tacticBoardKeys.all });
         },
@@ -386,7 +256,7 @@ export function useAutoSave(boardId: string | null) {
             }
 
             timeoutRef.current = setTimeout(() => {
-                updateMutation.mutate({ id: boardId, board_data: boardData });
+                updateMutation.mutate({ id: boardId, board_data: boardData as unknown as Record<string, unknown> });
             }, 1500);
         },
         [boardId, updateMutation]
@@ -398,7 +268,7 @@ export function useAutoSave(boardId: string | null) {
             if (timeoutRef.current) {
                 clearTimeout(timeoutRef.current);
             }
-            updateMutation.mutate({ id: boardId, board_data: boardData });
+            updateMutation.mutate({ id: boardId, board_data: boardData as unknown as Record<string, unknown> });
         },
         [boardId, updateMutation]
     );

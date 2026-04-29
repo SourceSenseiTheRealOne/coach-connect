@@ -663,6 +663,71 @@ async function seedMessages(userIds: string[]) {
     console.log('Created messaging seed data');
 }
 
+async function seedSubscriptions(userIds: string[]) {
+    console.log('Seeding subscriptions...');
+
+    // Map user indices to their subscription tiers from mockUsers
+    // Index 0: premium_coach -> pro_service
+    // Index 1: premium_coach -> pro_service  
+    // Index 2: pro_service -> pro_service
+    // Index 3: free -> no subscription
+    // Index 4: pro_service -> pro_service
+    // Index 5: free -> no subscription
+    // Index 6: premium_coach -> pro_service
+    // Index 7: club_license -> club_license
+    // Index 8: free -> no subscription
+    // Index 9: premium_coach -> pro_service
+
+    const subscriptionMappings = [
+        { userIndex: 0, tier: 'pro_service', priceId: 'price_1TRZLgHWoHwKWIEOGA0VcMdu' },
+        { userIndex: 1, tier: 'pro_service', priceId: 'price_1TRZLgHWoHwKWIEOGA0VcMdu' },
+        { userIndex: 2, tier: 'pro_service', priceId: 'price_1TRZLgHWoHwKWIEOGA0VcMdu' },
+        { userIndex: 4, tier: 'pro_service', priceId: 'price_1TRZLgHWoHwKWIEOGA0VcMdu' },
+        { userIndex: 6, tier: 'pro_service', priceId: 'price_1TRZLgHWoHwKWIEOGA0VcMdu' },
+        { userIndex: 7, tier: 'club_license', priceId: 'price_1TRZLhHWoHwKWIEOx71Pf3Wk' },
+        { userIndex: 9, tier: 'pro_service', priceId: 'price_1TRZLgHWoHwKWIEOGA0VcMdu' },
+    ];
+
+    const now = new Date();
+    const currentPeriodStart = new Date(now);
+    const currentPeriodEnd = new Date(now);
+    currentPeriodEnd.setMonth(currentPeriodEnd.getMonth() + 1); // 1 month from now
+
+    for (const mapping of subscriptionMappings) {
+        const userId = userIds[mapping.userIndex];
+
+        // Skip if userId is undefined (user creation failed)
+        if (!userId) {
+            console.log(`Skipping subscription for user ${mapping.userIndex} (user not created)`);
+            continue;
+        }
+
+        // Generate mock Stripe IDs
+        const mockCustomerId = `cus_test_${userId.slice(0, 8)}`;
+        const mockSubscriptionId = `sub_test_${userId.slice(0, 8)}`;
+
+        const { error } = await supabase.from('subscriptions').insert({
+            user_id: userId,
+            stripe_customer_id: mockCustomerId,
+            stripe_subscription_id: mockSubscriptionId,
+            stripe_price_id: mapping.priceId,
+            status: 'active',
+            subscription_tier: mapping.tier,
+            current_period_start: currentPeriodStart.toISOString(),
+            current_period_end: currentPeriodEnd.toISOString(),
+            cancel_at_period_end: false,
+        });
+
+        if (error) {
+            console.error(`Error creating subscription for user ${mapping.userIndex}:`, error.message);
+        } else {
+            console.log(`Created subscription for user ${mapping.userIndex} (${mapping.tier})`);
+        }
+    }
+
+    console.log('Created subscriptions');
+}
+
 async function main() {
     console.log('Starting seed process...\n');
 
@@ -680,6 +745,7 @@ async function main() {
         await seedPlanner(userIds);
         await seedTacticBoards(userIds);
         await seedMessages(userIds);
+        await seedSubscriptions(userIds);
 
         console.log('\n✅ Seed completed successfully!');
     } catch (error) {

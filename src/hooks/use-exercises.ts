@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { trpc } from "@/lib/trpc";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
 import type { Exercise, Profile, ExerciseCategory, AgeGroup, Difficulty } from "@/shared/types";
@@ -59,61 +60,37 @@ const exerciseKeys = {
 };
 
 // ============================================================
-// FETCH EXERCISES WITH AUTHORS
+// AUTHOR ENRICHMENT (direct REST so we batch in one request)
 // ============================================================
 
-async function fetchExercisesWithAuthors(filters: ExerciseFilters): Promise<ExerciseWithAuthor[]> {
-    let query = supabase
-        .from("exercises")
-        .select("*, author:profiles(id, username, full_name, avatar_url, user_type, uefa_license, is_verified, city)")
-        .eq("status", "approved")
-        .order("likes_count", { ascending: false });
-
-    // Apply filters
-    if (filters.category && filters.category !== "all") {
-        query = query.eq("category", filters.category);
+async function fetchAuthors(authorIds: string[]): Promise<Record<string, Profile>> {
+    if (!authorIds.length) return {};
+    try {
+        const response = await fetch(
+            `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/profiles?select=id,username,full_name,avatar_url,user_type,uefa_license,is_verified,city&id=in.(${authorIds.join(",")})`,
+            {
+                headers: {
+                    apikey: import.meta.env.VITE_SUPABASE_ANON_KEY || "",
+                    Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY || ""}`,
+                },
+            },
+        );
+        if (!response.ok) return {};
+        const list = await response.json();
+        return Object.fromEntries(list.map((p: Profile) => [p.id, p]));
+    } catch {
+        return {};
     }
-    if (filters.age_group && filters.age_group !== "all") {
-        query = query.eq("age_group", filters.age_group);
-    }
-    if (filters.difficulty && filters.difficulty !== "all") {
-        query = query.eq("difficulty", filters.difficulty);
-    }
-    if (filters.is_premium !== undefined) {
-        query = query.eq("is_premium", filters.is_premium);
-    }
-    if (filters.search && filters.search.trim()) {
-        query = query.or(`title.ilike.%${filters.search.trim()}%,description.ilike.%${filters.search.trim()}%`);
-    }
-
-    const { data, error } = await query.limit(100);
-
-    if (error) {
-        console.error("Error fetching exercises:", error);
-        return [];
-    }
-
-    return (data || []) as unknown as ExerciseWithAuthor[];
 }
 
-// ============================================================
-// FETCH MY LIKES FOR EXERCISES
-// ============================================================
-
-async function fetchMyExerciseLikes(userId: string, exerciseIds: string[]): Promise<Set<string>> {
+async function fetchMyLikedExerciseIds(userId: string, exerciseIds: string[]): Promise<Set<string>> {
     if (!exerciseIds.length) return new Set();
-
     const { data, error } = await supabase
         .from("exercise_likes")
         .select("exercise_id")
         .eq("user_id", userId)
         .in("exercise_id", exerciseIds);
-
-    if (error) {
-        console.error("Error fetching exercise likes:", error);
-        return new Set();
-    }
-
+    if (error) return new Set();
     return new Set((data || []).map((d) => d.exercise_id));
 }
 
@@ -122,218 +99,180 @@ async function fetchMyExerciseLikes(userId: string, exerciseIds: string[]): Prom
 // ============================================================
 
 /**
- * Hook to fetch exercises with filters
+ * Fetch exercises with filters (via tRPC) and enrich with author + like info.
+ * Returns shape compatible with `useQuery` consumers: { data, isLoading, error, refetch, isRefetching }.
  */
 export function useExercises(filters: ExerciseFilters) {
     const { user } = useAuth();
 
-    return useQuery({
-        queryKey: exerciseKeys.list(filters),
-        queryFn: async () => {
-            const exercises = await fetchExercisesWithAuthors(filters);
+    // Strip "all" sentinels and empty search; the server validator rejects them
+    const trpcInput = {
+        page: 1,
+        pageSize: 100,
+        ...(filters.category !== "all" ? { category: filters.category } : {}),
+        ...(filters.age_group !== "all" ? { age_group: filters.age_group } : {}),
+        ...(filters.difficulty !== "all" ? { difficulty: filters.difficulty } : {}),
+        ...(filters.search.trim() ? { search: filters.search.trim() } : {}),
+        ...(filters.is_premium !== undefined ? { is_premium: filters.is_premium } : {}),
+    };
 
-            // Fetch like status for current user
-            if (user && exercises.length > 0) {
-                const exerciseIds = exercises.map((e) => e.id);
-                const likedIds = await fetchMyExerciseLikes(user.id, exerciseIds);
-                return exercises.map((e) => ({
-                    ...e,
-                    isLikedByMe: likedIds.has(e.id),
-                }));
-            }
+    const listQuery = trpc.exercise.list.useQuery(trpcInput, {
+        staleTime: 30 * 1000,
+        retry: 2,
+        refetchOnWindowFocus: false,
+    });
 
-            return exercises;
+    const enrichQuery = useQuery({
+        queryKey: [...exerciseKeys.list(filters), "with-authors", user?.id],
+        queryFn: async (): Promise<ExerciseWithAuthor[]> => {
+            const items = listQuery.data?.items ?? [];
+            if (!items.length) return [];
+
+            const authorIds = [...new Set(items.map((e) => e.author_id).filter(Boolean))];
+            const exerciseIds = items.map((e) => e.id);
+
+            const [authors, likedIds] = await Promise.all([
+                fetchAuthors(authorIds),
+                user ? fetchMyLikedExerciseIds(user.id, exerciseIds) : Promise.resolve(new Set<string>()),
+            ]);
+
+            return items.map((e) => ({
+                ...e,
+                author: authors[e.author_id] ?? null,
+                isLikedByMe: likedIds.has(e.id),
+            }));
         },
+        enabled: !!listQuery.data && !listQuery.isLoading,
         staleTime: 30 * 1000,
     });
+
+    // Merge the two-stage query state so consumers see a single loading/error model
+    return {
+        data: enrichQuery.data,
+        isLoading: listQuery.isLoading || (!!listQuery.data && enrichQuery.isLoading),
+        error: listQuery.error || enrichQuery.error,
+        refetch: async () => {
+            await listQuery.refetch();
+            return enrichQuery.refetch();
+        },
+        isRefetching: listQuery.isRefetching || enrichQuery.isRefetching,
+    };
 }
 
 /**
- * Hook to create a new exercise
+ * Create a new exercise (via tRPC).
+ * Note: server sets is_approved=false / status=pending, so created exercises
+ * won't appear in the public list until approved. The page surfaces a toast.
  */
 export function useCreateExercise() {
     const queryClient = useQueryClient();
-    const { user } = useAuth();
+    const createMutation = trpc.exercise.create.useMutation();
 
-    return useMutation({
-        mutationFn: async (exercise: {
-            title: string;
-            description: string;
-            category: ExerciseCategory;
-            age_group: AgeGroup;
-            difficulty: Difficulty;
-            duration_minutes: number;
-            min_players: number;
-            max_players: number;
-            equipment: string[];
-            is_premium: boolean;
-        }) => {
-            if (!user) throw new Error("Must be logged in");
+    const mutateAsync = async (input: {
+        title: string;
+        description: string;
+        category: ExerciseCategory;
+        age_group: AgeGroup;
+        difficulty: Difficulty;
+        duration_minutes: number;
+        min_players: number;
+        max_players: number;
+        equipment: string[];
+        is_premium: boolean;
+    }) => {
+        const exercise = await createMutation.mutateAsync({
+            title: input.title,
+            description: input.description || null,
+            category: input.category,
+            age_group: input.age_group,
+            difficulty: input.difficulty,
+            image_url: null,
+            animation_url: null,
+            video_url: null,
+            diagram_data: null,
+            min_players: input.min_players,
+            max_players: input.max_players,
+            duration_minutes: input.duration_minutes,
+            equipment: input.equipment,
+            is_premium: input.is_premium,
+        });
 
-            const { data, error } = await supabase
-                .from("exercises")
-                .insert({
-                    ...exercise,
-                    author_id: user.id,
-                    status: "approved",
-                    is_approved: true,
-                    likes_count: 0,
-                    views_count: 0,
-                })
-                .select("*, author:profiles(*)")
-                .single();
+        queryClient.invalidateQueries({ queryKey: exerciseKeys.all });
+        return exercise;
+    };
 
-            if (error) throw error;
-            return data as unknown as ExerciseWithAuthor;
-        },
-        onSuccess: () => {
-            // Invalidate all exercise list queries
-            queryClient.invalidateQueries({ queryKey: exerciseKeys.all });
-        },
-    });
+    return {
+        mutateAsync,
+        isPending: createMutation.isPending,
+        error: createMutation.error,
+        reset: createMutation.reset,
+    };
 }
 
 /**
- * Hook to toggle like on an exercise
+ * Toggle like on an exercise (via tRPC), with optimistic update.
  */
 export function useToggleExerciseLike() {
     const queryClient = useQueryClient();
-    const { user } = useAuth();
+    const toggleMutation = trpc.exercise.toggleLike.useMutation();
 
-    return useMutation({
-        mutationFn: async ({ exerciseId, isLiked }: { exerciseId: string; isLiked: boolean }) => {
-            if (!user) throw new Error("Must be logged in");
-
-            if (isLiked) {
-                const { error: deleteError } = await supabase
-                    .from("exercise_likes")
-                    .delete()
-                    .eq("user_id", user.id)
-                    .eq("exercise_id", exerciseId);
-                if (deleteError) throw deleteError;
-
-                const { error: rpcError } = await supabase.rpc("decrement_exercise_likes", {
-                    exercise_id: exerciseId,
-                });
-                if (rpcError) {
-                    // Manual fallback
-                    const { data: ex } = await supabase
-                        .from("exercises")
-                        .select("likes_count")
-                        .eq("id", exerciseId)
-                        .single();
-                    if (ex) {
-                        await supabase
-                            .from("exercises")
-                            .update({ likes_count: Math.max(0, (ex.likes_count || 0) - 1) })
-                            .eq("id", exerciseId);
-                    }
-                }
-            } else {
-                const { error: insertError } = await supabase
-                    .from("exercise_likes")
-                    .insert({ user_id: user.id, exercise_id: exerciseId });
-                if (insertError) throw insertError;
-
-                const { error: rpcError } = await supabase.rpc("increment_exercise_likes", {
-                    exercise_id: exerciseId,
-                });
-                if (rpcError) {
-                    const { data: ex } = await supabase
-                        .from("exercises")
-                        .select("likes_count")
-                        .eq("id", exerciseId)
-                        .single();
-                    if (ex) {
-                        await supabase
-                            .from("exercises")
-                            .update({ likes_count: (ex.likes_count || 0) + 1 })
-                            .eq("id", exerciseId);
-                    }
-                }
-            }
-
-            return { liked: !isLiked };
-        },
-        // Optimistic update
-        onMutate: async ({ exerciseId, isLiked }) => {
-            await queryClient.cancelQueries({ queryKey: exerciseKeys.all });
-            const previousQueries = queryClient.getQueriesData({ queryKey: exerciseKeys.all });
-
-            queryClient.setQueriesData<ExerciseWithAuthor[]>({ queryKey: exerciseKeys.all }, (old = []) =>
+    const mutate = ({ exerciseId, isLiked }: { exerciseId: string; isLiked: boolean }) => {
+        // Optimistic update across all enriched lists
+        const previousQueries = queryClient.getQueriesData<ExerciseWithAuthor[]>({ queryKey: exerciseKeys.all });
+        queryClient.setQueriesData<ExerciseWithAuthor[]>(
+            { queryKey: exerciseKeys.all },
+            (old = []) =>
                 old.map((e) =>
                     e.id === exerciseId
                         ? {
-                            ...e,
-                            isLikedByMe: !isLiked,
-                            likes_count: isLiked ? e.likes_count - 1 : e.likes_count + 1,
-                        }
-                        : e
-                )
-            );
+                              ...e,
+                              isLikedByMe: !isLiked,
+                              likes_count: isLiked ? Math.max(0, e.likes_count - 1) : e.likes_count + 1,
+                          }
+                        : e,
+                ),
+        );
 
-            return { previousQueries };
-        },
-        onError: (_err, _variables, context) => {
-            if (context?.previousQueries) {
-                context.previousQueries.forEach(([key, data]) => {
-                    queryClient.setQueryData(key, data);
-                });
-            }
-        },
-    });
+        toggleMutation.mutate(exerciseId, {
+            onError: () => {
+                previousQueries.forEach(([key, data]) => queryClient.setQueryData(key, data));
+            },
+        });
+    };
+
+    return { mutate, isPending: toggleMutation.isPending };
 }
 
 /**
- * Hook to increment exercise views
+ * Increment view count (via tRPC).
  */
 export function useIncrementViews() {
-    return useMutation({
-        mutationFn: async (exerciseId: string) => {
-            const { error } = await supabase.rpc("increment_exercise_views", {
-                exercise_id: exerciseId,
-            });
-            if (error) {
-                // Fallback: try manual update
-                const { data: ex } = await supabase
-                    .from("exercises")
-                    .select("views_count")
-                    .eq("id", exerciseId)
-                    .single();
-                if (ex) {
-                    await supabase
-                        .from("exercises")
-                        .update({ views_count: (ex.views_count || 0) + 1 })
-                        .eq("id", exerciseId);
-                }
-            }
-        },
-    });
+    const incrementMutation = trpc.exercise.incrementViews.useMutation();
+    return {
+        mutateAsync: (exerciseId: string) => incrementMutation.mutateAsync(exerciseId),
+    };
 }
 
 /**
- * Hook to delete an exercise
+ * Delete an exercise (via tRPC).
  */
 export function useDeleteExercise() {
     const queryClient = useQueryClient();
-    const { user } = useAuth();
+    const deleteMutation = trpc.exercise.delete.useMutation();
 
-    return useMutation({
-        mutationFn: async (exerciseId: string) => {
-            if (!user) throw new Error("Must be logged in");
-
-            const { error } = await supabase.from("exercises").delete().eq("id", exerciseId);
-            if (error) throw error;
+    return {
+        mutateAsync: async (exerciseId: string) => {
+            await deleteMutation.mutateAsync(exerciseId);
+            queryClient.invalidateQueries({ queryKey: exerciseKeys.all });
             return exerciseId;
         },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: exerciseKeys.all });
-        },
-    });
+        isPending: deleteMutation.isPending,
+    };
 }
 
 /**
- * Real-time subscription for exercises
+ * Real-time subscription for exercises.
+ * Uses supabase WebSocket channel — separate from the REST auth path that had the deadlock issue.
  */
 export function useExercisesRealtime() {
     const queryClient = useQueryClient();
@@ -344,23 +283,17 @@ export function useExercisesRealtime() {
             .on(
                 "postgres_changes",
                 { event: "INSERT", schema: "public", table: "exercises" },
-                () => {
-                    queryClient.invalidateQueries({ queryKey: exerciseKeys.all });
-                }
+                () => queryClient.invalidateQueries({ queryKey: exerciseKeys.all }),
             )
             .on(
                 "postgres_changes",
                 { event: "UPDATE", schema: "public", table: "exercises" },
-                () => {
-                    queryClient.invalidateQueries({ queryKey: exerciseKeys.all });
-                }
+                () => queryClient.invalidateQueries({ queryKey: exerciseKeys.all }),
             )
             .on(
                 "postgres_changes",
                 { event: "DELETE", schema: "public", table: "exercises" },
-                () => {
-                    queryClient.invalidateQueries({ queryKey: exerciseKeys.all });
-                }
+                () => queryClient.invalidateQueries({ queryKey: exerciseKeys.all }),
             )
             .subscribe();
 

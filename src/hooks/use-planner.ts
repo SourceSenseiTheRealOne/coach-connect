@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { trpc } from "@/lib/trpc";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
 import type { SeasonPlan, TrainingSession, Exercise } from "@/shared/types";
@@ -91,23 +92,7 @@ export function calculateDuration(startTime: string | null, endTime: string | nu
 export function useSeasonPlans() {
     const { user } = useAuth();
 
-    return useQuery({
-        queryKey: plannerKeys.plans(),
-        queryFn: async (): Promise<SeasonPlan[]> => {
-            if (!user) return [];
-
-            const { data, error } = await supabase
-                .from("season_plans")
-                .select("*")
-                .eq("owner_id", user.id)
-                .order("created_at", { ascending: false });
-
-            if (error) {
-                console.error("Error fetching season plans:", error);
-                return [];
-            }
-            return (data || []) as SeasonPlan[];
-        },
+    return trpc.planner.getSeasonPlans.useQuery(undefined, {
         enabled: !!user,
         staleTime: 30 * 1000,
     });
@@ -119,23 +104,7 @@ export function useSeasonPlans() {
 export function useTrainingSessions(planId: string | null) {
     const { user } = useAuth();
 
-    return useQuery({
-        queryKey: plannerKeys.sessions(planId || ""),
-        queryFn: async (): Promise<TrainingSession[]> => {
-            if (!user || !planId) return [];
-
-            const { data, error } = await supabase
-                .from("training_sessions")
-                .select("*")
-                .eq("plan_id", planId)
-                .order("scheduled_date", { ascending: true });
-
-            if (error) {
-                console.error("Error fetching training sessions:", error);
-                return [];
-            }
-            return (data || []) as TrainingSession[];
-        },
+    return trpc.planner.getTrainingSessions.useQuery(planId || "", {
         enabled: !!user && !!planId,
         staleTime: 30 * 1000,
     });
@@ -145,28 +114,7 @@ export function useTrainingSessions(planId: string | null) {
  * Hook to fetch exercises for a specific training session
  */
 export function useSessionExercises(sessionId: string | null, enabled: boolean = true) {
-    return useQuery({
-        queryKey: plannerKeys.sessionExercises(sessionId || ""),
-        queryFn: async () => {
-            if (!sessionId) return [];
-
-            const { data, error } = await supabase
-                .from("session_exercises")
-                .select("*, exercise:exercises(*)")
-                .eq("session_id", sessionId)
-                .order("sort_order", { ascending: true });
-
-            if (error) {
-                console.error("Error fetching session exercises:", error);
-                return [];
-            }
-            return (data || []).map((d: Record<string, unknown>) => ({
-                ...d.exercise,
-                session_exercise_id: d.id,
-                duration_minutes: d.duration_minutes,
-                notes: d.notes,
-            }));
-        },
+    return trpc.planner.getSessionExercises.useQuery(sessionId || "", {
         enabled: !!sessionId && enabled,
         staleTime: 30 * 1000,
     });
@@ -177,30 +125,8 @@ export function useSessionExercises(sessionId: string | null, enabled: boolean =
  */
 export function useCreateSeasonPlan() {
     const queryClient = useQueryClient();
-    const { user } = useAuth();
 
-    return useMutation({
-        mutationFn: async (input: {
-            title: string;
-            age_group: string;
-            season_start: string;
-            season_end: string;
-            plan_type: string;
-        }) => {
-            if (!user) throw new Error("Must be logged in");
-
-            const { data, error } = await supabase
-                .from("season_plans")
-                .insert({
-                    ...input,
-                    owner_id: user.id,
-                })
-                .select()
-                .single();
-
-            if (error) throw error;
-            return data as SeasonPlan;
-        },
+    return trpc.planner.createSeasonPlan.useMutation({
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: plannerKeys.plans() });
         },
@@ -213,22 +139,10 @@ export function useCreateSeasonPlan() {
 export function useUpdateSeasonPlan() {
     const queryClient = useQueryClient();
 
-    return useMutation({
-        mutationFn: async (input: { id: string } & Partial<SeasonPlan>) => {
-            const { id, ...updates } = input;
-            const { data, error } = await supabase
-                .from("season_plans")
-                .update({ ...updates, updated_at: new Date().toISOString() })
-                .eq("id", id)
-                .select()
-                .single();
-
-            if (error) throw error;
-            return data as SeasonPlan;
-        },
-        onSuccess: (_data, variables) => {
+    return trpc.planner.updateSeasonPlan.useMutation({
+        onSuccess: (data) => {
             queryClient.invalidateQueries({ queryKey: plannerKeys.plans() });
-            queryClient.invalidateQueries({ queryKey: plannerKeys.plan(variables.id) });
+            queryClient.invalidateQueries({ queryKey: plannerKeys.plan(data.id) });
         },
     });
 }
@@ -239,19 +153,12 @@ export function useUpdateSeasonPlan() {
 export function useDeleteSeasonPlan() {
     const queryClient = useQueryClient();
 
-    return useMutation({
-        mutationFn: async (planId: string) => {
-            const { error } = await supabase
-                .from("season_plans")
-                .delete()
-                .eq("id", planId);
-
-            if (error) throw error;
-            return planId;
-        },
-        onSuccess: (planId) => {
+    return trpc.planner.deleteSeasonPlan.useMutation({
+        onSuccess: (_data, planId) => {
             queryClient.invalidateQueries({ queryKey: plannerKeys.plans() });
-            queryClient.invalidateQueries({ queryKey: plannerKeys.sessions(planId) });
+            if (planId) {
+                queryClient.invalidateQueries({ queryKey: plannerKeys.sessions(planId) });
+            }
         },
     });
 }
@@ -262,26 +169,9 @@ export function useDeleteSeasonPlan() {
 export function useCreateTrainingSession() {
     const queryClient = useQueryClient();
 
-    return useMutation({
-        mutationFn: async (input: {
-            plan_id: string;
-            title: string | null;
-            scheduled_date: string;
-            start_time: string | null;
-            end_time: string | null;
-            notes: string | null;
-        }) => {
-            const { data, error } = await supabase
-                .from("training_sessions")
-                .insert(input)
-                .select()
-                .single();
-
-            if (error) throw error;
-            return data as TrainingSession;
-        },
-        onSuccess: (_data, variables) => {
-            queryClient.invalidateQueries({ queryKey: plannerKeys.sessions(variables.plan_id) });
+    return trpc.planner.createTrainingSession.useMutation({
+        onSuccess: (data) => {
+            queryClient.invalidateQueries({ queryKey: plannerKeys.sessions(data.plan_id) });
         },
     });
 }
@@ -292,20 +182,9 @@ export function useCreateTrainingSession() {
 export function useUpdateTrainingSession() {
     const queryClient = useQueryClient();
 
-    return useMutation({
-        mutationFn: async ({ id, plan_id, ...updates }: { id: string; plan_id: string } & Partial<TrainingSession>) => {
-            const { data, error } = await supabase
-                .from("training_sessions")
-                .update(updates)
-                .eq("id", id)
-                .select()
-                .single();
-
-            if (error) throw error;
-            return data as TrainingSession;
-        },
-        onSuccess: (_data, variables) => {
-            queryClient.invalidateQueries({ queryKey: plannerKeys.sessions(variables.plan_id) });
+    return trpc.planner.updateTrainingSession.useMutation({
+        onSuccess: (data) => {
+            queryClient.invalidateQueries({ queryKey: plannerKeys.sessions(data.plan_id) });
         },
     });
 }
@@ -316,18 +195,9 @@ export function useUpdateTrainingSession() {
 export function useDeleteTrainingSession() {
     const queryClient = useQueryClient();
 
-    return useMutation({
-        mutationFn: async ({ sessionId, planId }: { sessionId: string; planId: string }) => {
-            const { error } = await supabase
-                .from("training_sessions")
-                .delete()
-                .eq("id", sessionId);
-
-            if (error) throw error;
-            return { sessionId, planId };
-        },
-        onSuccess: (_data, variables) => {
-            queryClient.invalidateQueries({ queryKey: plannerKeys.sessions(variables.planId) });
+    return trpc.planner.deleteTrainingSession.useMutation({
+        onSuccess: (_data, sessionId) => {
+            queryClient.invalidateQueries({ queryKey: plannerKeys.all });
         },
     });
 }
@@ -338,25 +208,9 @@ export function useDeleteTrainingSession() {
 export function useAddExerciseToSession() {
     const queryClient = useQueryClient();
 
-    return useMutation({
-        mutationFn: async (input: {
-            session_id: string;
-            exercise_id: string;
-            sort_order?: number;
-            duration_minutes?: number | null;
-            notes?: string | null;
-        }) => {
-            const { data, error } = await supabase
-                .from("session_exercises")
-                .insert(input)
-                .select()
-                .single();
-
-            if (error) throw error;
-            return data;
-        },
-        onSuccess: (_data, variables) => {
-            queryClient.invalidateQueries({ queryKey: plannerKeys.sessionExercises(variables.session_id) });
+    return trpc.planner.addExerciseToSession.useMutation({
+        onSuccess: (data) => {
+            queryClient.invalidateQueries({ queryKey: plannerKeys.sessionExercises(data.session_id) });
         },
     });
 }
@@ -367,18 +221,9 @@ export function useAddExerciseToSession() {
 export function useRemoveExerciseFromSession() {
     const queryClient = useQueryClient();
 
-    return useMutation({
-        mutationFn: async ({ sessionExerciseId, sessionId }: { sessionExerciseId: string; sessionId: string }) => {
-            const { error } = await supabase
-                .from("session_exercises")
-                .delete()
-                .eq("id", sessionExerciseId);
-
-            if (error) throw error;
-            return { sessionExerciseId, sessionId };
-        },
-        onSuccess: (_data, variables) => {
-            queryClient.invalidateQueries({ queryKey: plannerKeys.sessionExercises(variables.sessionId) });
+    return trpc.planner.removeExerciseFromSession.useMutation({
+        onSuccess: (_data, sessionExerciseId) => {
+            queryClient.invalidateQueries({ queryKey: plannerKeys.all });
         },
     });
 }

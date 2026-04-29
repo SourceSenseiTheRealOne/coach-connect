@@ -15,6 +15,7 @@ import { marketplaceRouter } from './marketplace';
 import { notificationsRouter } from './notifications';
 import { uploadRouter } from './upload';
 import { clubRouter } from './club';
+import { subscriptionRouter } from './subscription';
 
 export const appRouter = router({
     auth: authRouter,
@@ -33,6 +34,7 @@ export const appRouter = router({
     notifications: notificationsRouter,
     upload: uploadRouter,
     club: clubRouter,
+    subscription: subscriptionRouter,
 });
 
 export type AppRouter = typeof appRouter;

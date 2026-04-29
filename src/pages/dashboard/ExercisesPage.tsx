@@ -138,7 +138,7 @@ function ExerciseDetailModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="glass-card border-border max-w-lg max-h-[85vh] overflow-y-auto">
+      <DialogContent className="glass-card border-border w-[calc(100vw-2rem)] max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-foreground text-lg">
             {exercise.title}
@@ -334,7 +334,7 @@ function CreateExerciseDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="glass-card border-border max-w-lg max-h-[85vh] overflow-y-auto">
+      <DialogContent className="glass-card border-border w-[calc(100vw-2rem)] max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-foreground">Create Exercise</DialogTitle>
         </DialogHeader>
@@ -769,7 +769,7 @@ export default function ExercisesPage() {
             onClick={() => setCreateOpen(true)}
             className="bg-primary text-primary-foreground hover:bg-primary/90 gap-1"
           >
-            <Plus size={16} /> Create
+            <Plus size={16} /> <span className="hidden sm:inline">Create</span>
           </Button>
         </div>
       </motion.div>
@@ -798,7 +798,7 @@ export default function ExercisesPage() {
                 Clear all
               </button>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="text-xs text-muted-foreground mb-1 block">
                   Age Group
@@ -857,7 +857,7 @@ export default function ExercisesPage() {
           <button
             key={cat}
             onClick={() => setActiveCategory(cat as ExerciseCategory | "all")}
-            className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
+            className={`px-3 py-1.5 rounded-full text-xs sm:px-4 sm:py-2 sm:text-sm font-medium whitespace-nowrap transition-colors ${
               activeCategory === cat
                 ? "bg-primary text-primary-foreground"
                 : "bg-secondary text-muted-foreground hover:text-foreground"

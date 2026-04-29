@@ -17,6 +17,8 @@ import SignupPage from "@/pages/SignupPage";
 import ForgotPasswordPage from "@/pages/ForgotPasswordPage";
 import ResetPasswordPage from "@/pages/ResetPasswordPage";
 import AuthCallbackPage from "@/pages/AuthCallbackPage";
+import SubscriptionSuccessPage from "@/pages/SubscriptionSuccessPage";
+import SubscriptionCanceledPage from "@/pages/SubscriptionCanceledPage";
 import FeedPage from "@/pages/dashboard/FeedPage";
 import ExercisesPage from "@/pages/dashboard/ExercisesPage";
 import ProfilePage from "@/pages/dashboard/ProfilePage";
@@ -54,6 +56,16 @@ const App = () => (
               <Route path="/forgot-password" element={<ForgotPasswordPage />} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route path="/auth/callback" element={<AuthCallbackPage />} />
+
+              {/* Subscription pages */}
+              <Route
+                path="/subscription/success"
+                element={<SubscriptionSuccessPage />}
+              />
+              <Route
+                path="/subscription/canceled"
+                element={<SubscriptionCanceledPage />}
+              />
 
               {/* Dashboard - Protected routes */}
               <Route

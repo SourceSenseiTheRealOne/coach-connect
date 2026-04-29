@@ -1,11 +1,35 @@
 import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
-import { Check, X } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Check, X, Loader2 } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { trpc } from "@/lib/trpc";
 
 export default function PricingPage() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
+  const { mutate: createCheckout, isPending } =
+    trpc.subscription.createCheckoutSession.useMutation();
+
+  const handleSubscribe = (priceId: string) => {
+    createCheckout(
+      { priceId },
+      {
+        onSuccess: (data) => {
+          if (data.url) {
+            window.location.href = data.url;
+          }
+        },
+        onError: (error) => {
+          console.error("Checkout error:", error);
+          // Redirect to login if not authenticated
+          if (error.message?.includes("UNAUTHORIZED")) {
+            navigate("/login");
+          }
+        },
+      },
+    );
+  };
 
   const plans = [
     {
@@ -28,10 +52,11 @@ export default function PricingPage() {
       ],
       cta: t("pricing.cta.startFree"),
       popular: false,
+      priceId: null,
     },
     {
-      name: t("pricing.plans.premium"),
-      price: "€7.99",
+      name: "Pro Service",
+      price: "€9.99",
       period: t("pricing.period.month"),
       desc: t("pricing.features.premium.desc"),
       features: [
@@ -52,6 +77,7 @@ export default function PricingPage() {
       ],
       cta: t("pricing.cta.goPremium"),
       popular: true,
+      priceId: "price_1TRZLgHWoHwKWIEOGA0VcMdu",
     },
     {
       name: t("pricing.plans.pro"),
@@ -70,11 +96,12 @@ export default function PricingPage() {
       ],
       cta: t("pricing.cta.goPro"),
       popular: false,
+      priceId: null,
     },
     {
-      name: t("pricing.plans.club"),
-      price: "€59.99",
-      period: t("pricing.period.year"),
+      name: "Club License",
+      price: "€29.99",
+      period: t("pricing.period.month"),
       desc: t("pricing.features.club.desc"),
       features: [
         { text: t("pricing.features.club.everythingPremium"), included: true },
@@ -88,6 +115,7 @@ export default function PricingPage() {
       ],
       cta: t("pricing.cta.getLicense"),
       popular: false,
+      priceId: "price_1TRZLhHWoHwKWIEOx71Pf3Wk",
     },
   ];
 
@@ -165,17 +193,34 @@ export default function PricingPage() {
                 ))}
               </div>
 
-              <Link to="/signup">
+              {plan.priceId ? (
                 <Button
+                  onClick={() => handleSubscribe(plan.priceId!)}
+                  disabled={isPending}
                   className={`w-full ${
                     plan.popular
                       ? "bg-primary text-primary-foreground hover:bg-primary/90"
                       : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
                   }`}
                 >
+                  {isPending ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : null}
                   {plan.cta}
                 </Button>
-              </Link>
+              ) : (
+                <Link to="/signup">
+                  <Button
+                    className={`w-full ${
+                      plan.popular
+                        ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                        : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                    }`}
+                  >
+                    {plan.cta}
+                  </Button>
+                </Link>
+              )}
             </motion.div>
           ))}
         </div>
