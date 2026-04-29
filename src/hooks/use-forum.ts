@@ -30,7 +30,11 @@ export function useForumCategories() {
  */
 export function useForumThreads(categoryId?: string | null) {
     return trpc.forum.listThreads.useQuery(
-        categoryId ? { category_id: categoryId } : undefined,
+        {
+            page: 1,
+            pageSize: 50,
+            ...(categoryId ? { category_id: categoryId } : {}),
+        },
         {
             staleTime: 30 * 1000,
         }

@@ -198,7 +198,7 @@ export const updatePostSchema = createPostSchema.partial();
 export const createCommentSchema = z.object({
     post_id: uuidSchema,
     content: z.string().min(1).max(2000),
-    parent_comment_id: uuidSchema.nullable(),
+    parent_comment_id: uuidSchema.nullable().optional(),
 });
 
 export const listPostsSchema = paginationSchema.extend({

@@ -81,6 +81,27 @@ export function useFollowStatus(targetUserId: string | null) {
 }
 
 /**
+ * Hook to get exercise count for a user
+ */
+export function useUserExerciseCount(userId: string | null) {
+    return trpc.exercise.getByAuthor.useQuery(userId || "", {
+        enabled: !!userId,
+        select: (data) => data.length,
+    });
+}
+
+/**
+ * Hook to get recent exercises by the current user
+ */
+export function useMyRecentExercises(limit: number = 5) {
+    const { data: profile } = useMyProfile();
+    return trpc.exercise.getByAuthor.useQuery(profile?.id || "", {
+        enabled: !!profile?.id,
+        select: (data) => data.slice(0, limit),
+    });
+}
+
+/**
  * Hook to get follow counts for a profile
  */
 export function useFollowCounts(userId: string | null) {

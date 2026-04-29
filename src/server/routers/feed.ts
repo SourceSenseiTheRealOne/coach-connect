@@ -131,6 +131,8 @@ export const feedRouter = router({
             } else {
                 await posts.like(ctx.user!.id, input);
             }
-            return { liked: !isLiked };
+            // Return the updated post with the new like count
+            const updatedPost = await posts.getById(input);
+            return updatedPost;
         }),
 });

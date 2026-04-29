@@ -74,4 +74,23 @@ export const tacticBoardRouter = router({
             }
             return { success: true };
         }),
+
+    // Duplicate
+    duplicate: protectedProcedure
+        .input(uuidSchema)
+        .mutation(async ({ ctx, input }) => {
+            const existing = await tacticBoards.getById(input);
+            if (!existing) {
+                throw new TRPCError({ code: 'NOT_FOUND', message: 'Tactic board not found' });
+            }
+            if (existing.owner_id !== ctx.user!.id) {
+                throw new TRPCError({ code: 'FORBIDDEN', message: 'You can only duplicate your own tactic boards' });
+            }
+
+            const board = await tacticBoards.duplicate(input, ctx.user!.id);
+            if (!board) {
+                throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to duplicate tactic board' });
+            }
+            return board;
+        }),
 });

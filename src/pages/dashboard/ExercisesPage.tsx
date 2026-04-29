@@ -123,6 +123,11 @@ function ExerciseDetailModal({
     : "";
 
   const handleLike = () => {
+    console.log("ExerciseDetailModal handleLike called:", {
+      userId: user?.id,
+      exerciseId: exercise.id,
+      isLikedByMe: exercise.isLikedByMe,
+    });
     if (!user) {
       toast({
         title: "Please log in to like exercises",
@@ -552,6 +557,11 @@ function ExerciseCard({
 
   const handleLike = (e: React.MouseEvent) => {
     e.stopPropagation();
+    console.log("ExerciseCard handleLike called:", {
+      userId: user?.id,
+      exerciseId: exercise.id,
+      isLikedByMe: exercise.isLikedByMe,
+    });
     if (!user) {
       toast({
         title: "Please log in to like exercises",

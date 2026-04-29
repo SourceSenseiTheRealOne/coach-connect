@@ -143,10 +143,33 @@ export function useFeedPosts() {
             const authors = await fetchAuthors(authorIds);
             console.log("[useFeedPosts] Got authors:", Object.keys(authors));
 
-            // Combine posts with authors
+            // Fetch like status for all posts if user is logged in
+            let likeStatuses: Record<string, boolean> = {};
+            if (user) {
+                try {
+                    const response = await fetch(
+                        `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/post_likes?select=post_id,user_id&user_id=eq.${user.id}`,
+                        {
+                            headers: {
+                                'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY || '',
+                                'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY || ''}`,
+                            },
+                        }
+                    );
+                    if (response.ok) {
+                        const likes = await response.json();
+                        likeStatuses = Object.fromEntries(likes.map((l: { post_id: string }) => [l.post_id, true]));
+                    }
+                } catch (err) {
+                    console.error("[useFeedPosts] Error fetching like statuses:", err);
+                }
+            }
+
+            // Combine posts with authors and like status
             return posts.map((post) => ({
                 ...post,
                 author: post.author_id ? authors[post.author_id] || null : null,
+                isLikedByMe: likeStatuses[post.id] || false,
             })) as PostWithAuthor[];
         },
         enabled: !!postsData?.items && !postsLoading,
@@ -223,6 +246,7 @@ export function useCreatePost() {
  */
 export function useToggleLike() {
     const queryClient = useQueryClient();
+    const { user } = useAuth();
     const toggleMutation = trpc.feed.toggleLike.useMutation();
 
     const mutateAsync = async ({ postId, isLiked }: { postId: string; isLiked: boolean }) => {
@@ -243,8 +267,27 @@ export function useToggleLike() {
         );
 
         try {
-            const result = await toggleMutation.mutateAsync(postId);
-            return result;
+            const updatedPost = await toggleMutation.mutateAsync(postId);
+            // Update the cache with the actual server response
+            if (updatedPost) {
+                queryClient.setQueryData<PostWithAuthor[]>(feedKeys.posts(), (old = []) =>
+                    old.map((p) =>
+                        p.id === postId
+                            ? {
+                                ...p,
+                                likes_count: updatedPost.likes_count,
+                                isLikedByMe: !isLiked,
+                            }
+                            : p
+                    )
+                );
+
+                // Invalidate the posts query to refetch like statuses if needed
+                if (user) {
+                    queryClient.invalidateQueries({ queryKey: [...feedKeys.posts(), "with-authors", user.id] });
+                }
+            }
+            return updatedPost;
         } catch (err) {
             // Rollback on error
             if (previousPosts) {
@@ -271,14 +314,10 @@ export function useCreateComment() {
     const createCommentMutation = trpc.feed.createComment.useMutation();
 
     const mutateAsync = async ({ postId, content }: { postId: string; content: string }) => {
-        const comment = await createCommentMutation.mutateAsync({
-            post_id: postId,
-            content,
-        });
+        // Optimistic update for comments count
+        await queryClient.cancelQueries({ queryKey: feedKeys.posts() });
+        const previousPosts = queryClient.getQueryData<PostWithAuthor[]>(feedKeys.posts());
 
-        const commentWithAuthor = { ...comment, author: profile } as CommentWithAuthor;
-
-        queryClient.invalidateQueries({ queryKey: feedKeys.comments(postId) });
         queryClient.setQueryData<PostWithAuthor[]>(feedKeys.posts(), (old = []) =>
             old.map((p) =>
                 p.id === postId
@@ -287,7 +326,25 @@ export function useCreateComment() {
             )
         );
 
-        return commentWithAuthor;
+        try {
+            const comment = await createCommentMutation.mutateAsync({
+                post_id: postId,
+                content,
+            });
+
+            const commentWithAuthor = { ...comment, author: profile } as CommentWithAuthor;
+
+            // Invalidate comments query to fetch new comment
+            queryClient.invalidateQueries({ queryKey: feedKeys.comments(postId) });
+
+            return commentWithAuthor;
+        } catch (err) {
+            // Rollback on error
+            if (previousPosts) {
+                queryClient.setQueryData(feedKeys.posts(), previousPosts);
+            }
+            throw err;
+        }
     };
 
     return {

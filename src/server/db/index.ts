@@ -186,8 +186,7 @@ export const exercises = {
 
         let query = supabase
             .from('exercises')
-            .select('*', { count: 'exact' })
-            .eq('is_approved', true);
+            .select('*', { count: 'exact' });
 
         if (category) query = query.eq('category', category);
         if (age_group) query = query.eq('age_group', age_group);
@@ -445,6 +444,12 @@ export const posts = {
             .select()
             .single();
         if (error) return null;
+
+        // Increment comments count
+        if (comment && comment.post_id) {
+            await supabase.rpc('increment_post_comments', { post_id: comment.post_id });
+        }
+
         return comment as PostComment;
     },
 
@@ -883,6 +888,30 @@ export const tacticBoards = {
             .single();
         if (error) return null;
         return data as TacticBoard;
+    },
+
+    duplicate: async (id: string, ownerId: string): Promise<TacticBoard | null> => {
+        const supabase = getSupabaseServerClient();
+
+        // Get the original board
+        const original = await tacticBoards.getById(id);
+        if (!original) return null;
+
+        // Create a duplicate with a modified title
+        const { data: board, error } = await supabase
+            .from('tactic_boards')
+            .insert({
+                owner_id: ownerId,
+                title: `${original.title} (Copy)`,
+                board_data: original.board_data,
+                thumbnail_url: original.thumbnail_url,
+                animation_data: original.animation_data,
+            })
+            .select()
+            .single();
+
+        if (error) return null;
+        return board as TacticBoard;
     },
 
     delete: async (id: string): Promise<boolean> => {

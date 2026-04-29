@@ -18,7 +18,10 @@ export const jobsKeys = {
  * Hook to fetch all job listings
  */
 export function useJobs() {
-    return trpc.jobs.list.useQuery(undefined, {
+    return trpc.jobs.list.useQuery({
+        page: 1,
+        pageSize: 50,
+    }, {
         staleTime: 30 * 1000,
     });
 }

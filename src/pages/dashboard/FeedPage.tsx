@@ -502,8 +502,9 @@ export default function FeedPage() {
         ? posts.map((post, i) => (
             <PostCard key={post.id} post={post} index={i} />
           ))
-        : !isLoading &&
-          !error && (
+        : isSuccess &&
+          !error &&
+          (!posts || posts.length === 0) && (
             <motion.div
               className="glass-card p-8 flex flex-col items-center justify-center gap-3"
               initial={{ opacity: 0 }}

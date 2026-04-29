@@ -236,6 +236,19 @@ export function useDeleteTacticBoard() {
     });
 }
 
+/**
+ * Hook to duplicate a tactic board
+ */
+export function useDuplicateTacticBoard() {
+    const queryClient = useQueryClient();
+
+    return trpc.tacticBoard.duplicate.useMutation({
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: tacticBoardKeys.all });
+        },
+    });
+}
+
 // ============================================================
 // AUTO-SAVE HOOK
 // ============================================================

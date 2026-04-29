@@ -19,7 +19,10 @@ export const marketplaceKeys = {
  * Hook to fetch all marketplace listings
  */
 export function useMarketplaceListings() {
-    return trpc.marketplace.list.useQuery(undefined, {
+    return trpc.marketplace.list.useQuery({
+        page: 1,
+        pageSize: 50,
+    }, {
         staleTime: 30 * 1000,
     });
 }

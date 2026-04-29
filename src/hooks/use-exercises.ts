@@ -108,7 +108,7 @@ export function useExercises(filters: ExerciseFilters) {
     // Strip "all" sentinels and empty search; the server validator rejects them
     const trpcInput = {
         page: 1,
-        pageSize: 100,
+        pageSize: 50,
         ...(filters.category !== "all" ? { category: filters.category } : {}),
         ...(filters.age_group !== "all" ? { age_group: filters.age_group } : {}),
         ...(filters.difficulty !== "all" ? { difficulty: filters.difficulty } : {}),
@@ -116,46 +116,67 @@ export function useExercises(filters: ExerciseFilters) {
         ...(filters.is_premium !== undefined ? { is_premium: filters.is_premium } : {}),
     };
 
-    const listQuery = trpc.exercise.list.useQuery(trpcInput, {
+    const query = trpc.exercise.list.useQuery(trpcInput, {
         staleTime: 30 * 1000,
-        retry: 2,
+        retry: 1,
         refetchOnWindowFocus: false,
     });
 
-    const enrichQuery = useQuery({
-        queryKey: [...exerciseKeys.list(filters), "with-authors", user?.id],
+    // Enrich the data with author and like status
+    const enrichedData = useQuery({
+        queryKey: [...exerciseKeys.list(filters), "enriched", user?.id],
         queryFn: async (): Promise<ExerciseWithAuthor[]> => {
-            const items = listQuery.data?.items ?? [];
+            const items = query.data?.items ?? [];
+            console.log('Enrichment query running:', { itemCount: items.length, userId: user?.id });
             if (!items.length) return [];
 
             const authorIds = [...new Set(items.map((e) => e.author_id).filter(Boolean))];
             const exerciseIds = items.map((e) => e.id);
 
-            const [authors, likedIds] = await Promise.all([
-                fetchAuthors(authorIds),
-                user ? fetchMyLikedExerciseIds(user.id, exerciseIds) : Promise.resolve(new Set<string>()),
-            ]);
+            let authors: Record<string, Profile> = {};
+            let likedIds: Set<string> = new Set();
 
-            return items.map((e) => ({
+            // Fetch authors
+            if (authorIds.length > 0) {
+                try {
+                    authors = await fetchAuthors(authorIds);
+                    console.log('Fetched authors:', Object.keys(authors).length);
+                } catch (err) {
+                    console.error("Error fetching authors:", err);
+                }
+            }
+
+            // Fetch liked IDs only if user is logged in
+            if (user && exerciseIds.length > 0) {
+                try {
+                    likedIds = await fetchMyLikedExerciseIds(user.id, exerciseIds);
+                    console.log('Fetched liked IDs:', likedIds.size);
+                } catch (err) {
+                    console.error("Error fetching liked exercise IDs:", err);
+                }
+            }
+
+            const enriched = items.map((e) => ({
                 ...e,
-                author: authors[e.author_id] ?? null,
+                author: e.author_id ? (authors[e.author_id] ?? null) : null,
                 isLikedByMe: likedIds.has(e.id),
-            }));
+            })) as ExerciseWithAuthor[];
+
+            console.log('Enriched data sample:', enriched[0]);
+            return enriched;
         },
-        enabled: !!listQuery.data && !listQuery.isLoading,
+        enabled: !query.isLoading && !!query.data?.items,
         staleTime: 30 * 1000,
+        retry: 1,
     });
 
-    // Merge the two-stage query state so consumers see a single loading/error model
+    // Return enriched data if available, otherwise return raw data
     return {
-        data: enrichQuery.data,
-        isLoading: listQuery.isLoading || (!!listQuery.data && enrichQuery.isLoading),
-        error: listQuery.error || enrichQuery.error,
-        refetch: async () => {
-            await listQuery.refetch();
-            return enrichQuery.refetch();
-        },
-        isRefetching: listQuery.isRefetching || enrichQuery.isRefetching,
+        data: enrichedData.data ?? (query.data?.items as ExerciseWithAuthor[]),
+        isLoading: query.isLoading,
+        error: query.error || enrichedData.error,
+        refetch: () => query.refetch(),
+        isRefetching: query.isRefetching,
     };
 }
 
@@ -217,25 +238,35 @@ export function useToggleExerciseLike() {
     const toggleMutation = trpc.exercise.toggleLike.useMutation();
 
     const mutate = ({ exerciseId, isLiked }: { exerciseId: string; isLiked: boolean }) => {
-        // Optimistic update across all enriched lists
-        const previousQueries = queryClient.getQueriesData<ExerciseWithAuthor[]>({ queryKey: exerciseKeys.all });
+        console.log('Toggle like called:', { exerciseId, isLiked });
+
+        // Optimistic update - update the specific exercise in all caches
         queryClient.setQueriesData<ExerciseWithAuthor[]>(
             { queryKey: exerciseKeys.all },
-            (old = []) =>
-                old.map((e) =>
+            (old = []) => {
+                if (!old) return old;
+                return old.map((e) =>
                     e.id === exerciseId
                         ? {
-                              ...e,
-                              isLikedByMe: !isLiked,
-                              likes_count: isLiked ? Math.max(0, e.likes_count - 1) : e.likes_count + 1,
-                          }
+                            ...e,
+                            isLikedByMe: !isLiked,
+                            likes_count: isLiked ? Math.max(0, (e.likes_count || 0) - 1) : (e.likes_count || 0) + 1,
+                        }
                         : e,
-                ),
+                );
+            },
         );
 
         toggleMutation.mutate(exerciseId, {
-            onError: () => {
-                previousQueries.forEach(([key, data]) => queryClient.setQueryData(key, data));
+            onSuccess: (data) => {
+                console.log('Toggle like success:', data);
+                // Invalidate to refetch fresh data
+                queryClient.invalidateQueries({ queryKey: exerciseKeys.all });
+            },
+            onError: (error) => {
+                console.error('Toggle like error:', error);
+                // Revert on error by refetching
+                queryClient.invalidateQueries({ queryKey: exerciseKeys.all });
             },
         });
     };
