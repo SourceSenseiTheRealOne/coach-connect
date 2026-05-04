@@ -78,12 +78,16 @@ export default function LoginPage() {
         transition={{ duration: 0.5 }}
       >
         <div className="text-center mb-8">
-          <Link to="/" className="inline-flex items-center gap-2 mb-6">
-            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
-              <span className="font-display font-bold text-primary-foreground">
-                EC
+          <Link to="/" className="inline-flex items-center gap-2.5 mb-6 group">
+            <div className="relative w-10 h-10 rounded-xl bg-gradient-to-br from-primary via-primary to-secondary flex items-center justify-center shadow-[0_8px_24px_-8px_hsl(var(--primary)/0.55)] transition-transform duration-300 group-hover:-rotate-3">
+              <span className="font-display italic font-semibold text-primary-foreground text-base leading-none">
+                cc
               </span>
+              <span className="absolute -right-0.5 -top-0.5 w-1.5 h-1.5 rounded-full bg-secondary ring-2 ring-background" />
             </div>
+            <span className="font-display text-xl font-semibold tracking-tight text-foreground leading-none">
+              Coach<span className="italic text-primary">Connect</span>
+            </span>
           </Link>
           <h1 className="font-display text-2xl font-bold text-foreground">
             {t("auth.welcomeBack")}
@@ -110,7 +114,7 @@ export default function LoginPage() {
                   placeholder={t("auth.emailPlaceholder")}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="pl-10 bg-secondary border-border text-foreground placeholder:text-muted-foreground focus:ring-primary"
+                  className="pl-10 bg-muted/40 border-border text-foreground placeholder:text-muted-foreground focus:ring-primary"
                   required
                   disabled={isLoading}
                 />
@@ -140,7 +144,7 @@ export default function LoginPage() {
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="pl-10 bg-secondary border-border text-foreground placeholder:text-muted-foreground focus:ring-primary"
+                  className="pl-10 bg-muted/40 border-border text-foreground placeholder:text-muted-foreground focus:ring-primary"
                   required
                   disabled={isLoading}
                 />
@@ -178,7 +182,7 @@ export default function LoginPage() {
 
           <Button
             variant="outline"
-            className="w-full border-border hover:bg-secondary"
+            className="w-full border-border hover:bg-muted/60"
             type="button"
             onClick={handleGoogleSignIn}
             disabled={isLoading || isGoogleLoading}

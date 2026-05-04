@@ -105,12 +105,16 @@ export default function SignupPage() {
         transition={{ duration: 0.5 }}
       >
         <div className="text-center mb-8">
-          <Link to="/" className="inline-flex items-center gap-2 mb-6">
-            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
-              <span className="font-display font-bold text-primary-foreground">
-                EC
+          <Link to="/" className="inline-flex items-center gap-2.5 mb-6 group">
+            <div className="relative w-10 h-10 rounded-xl bg-gradient-to-br from-primary via-primary to-secondary flex items-center justify-center shadow-[0_8px_24px_-8px_hsl(var(--primary)/0.55)] transition-transform duration-300 group-hover:-rotate-3">
+              <span className="font-display italic font-semibold text-primary-foreground text-base leading-none">
+                cc
               </span>
+              <span className="absolute -right-0.5 -top-0.5 w-1.5 h-1.5 rounded-full bg-secondary ring-2 ring-background" />
             </div>
+            <span className="font-display text-xl font-semibold tracking-tight text-foreground leading-none">
+              Coach<span className="italic text-primary">Connect</span>
+            </span>
           </Link>
           <h1 className="font-display text-2xl font-bold text-foreground">
             {t("auth.createAccount")}
@@ -134,7 +138,7 @@ export default function SignupPage() {
                     className={`p-3 rounded-lg border text-sm font-medium transition-all flex items-center gap-2 ${
                       selectedType === type.value
                         ? "border-primary bg-primary/10 text-primary"
-                        : "border-border bg-secondary text-muted-foreground hover:border-primary/30"
+                        : "border-border bg-muted/40 text-muted-foreground hover:border-primary/30 hover:bg-muted/60"
                     }`}
                   >
                     <span>{type.emoji}</span>
@@ -158,7 +162,7 @@ export default function SignupPage() {
                   placeholder={t("auth.fullNamePlaceholder")}
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  className="pl-10 bg-secondary border-border text-foreground placeholder:text-muted-foreground"
+                  className="pl-10 bg-muted/40 border-border text-foreground placeholder:text-muted-foreground"
                   required
                   disabled={isLoading}
                 />
@@ -179,7 +183,7 @@ export default function SignupPage() {
                   placeholder={t("auth.usernamePlaceholder")}
                   value={username}
                   onChange={(e) => setUsername(e.target.value.toLowerCase())}
-                  className="pl-10 bg-secondary border-border text-foreground placeholder:text-muted-foreground"
+                  className="pl-10 bg-muted/40 border-border text-foreground placeholder:text-muted-foreground"
                   required
                   disabled={isLoading}
                   minLength={3}
@@ -207,7 +211,7 @@ export default function SignupPage() {
                   placeholder={t("auth.emailPlaceholder")}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="pl-10 bg-secondary border-border text-foreground placeholder:text-muted-foreground"
+                  className="pl-10 bg-muted/40 border-border text-foreground placeholder:text-muted-foreground"
                   required
                   disabled={isLoading}
                 />
@@ -229,7 +233,7 @@ export default function SignupPage() {
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="pl-10 bg-secondary border-border text-foreground placeholder:text-muted-foreground"
+                  className="pl-10 bg-muted/40 border-border text-foreground placeholder:text-muted-foreground"
                   required
                   disabled={isLoading}
                   minLength={8}
@@ -271,7 +275,7 @@ export default function SignupPage() {
 
           <Button
             variant="outline"
-            className="w-full border-border hover:bg-secondary"
+            className="w-full border-border hover:bg-muted/60"
             type="button"
             onClick={handleGoogleSignIn}
             disabled={isLoading || isGoogleLoading}

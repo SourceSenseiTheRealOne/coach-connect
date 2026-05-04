@@ -20,6 +20,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/lib/auth-context";
 import { toast } from "sonner";
+import { getInitials } from "@/lib/utils";
 
 const sidebarLinks = [
   { icon: Home, label: "Feed", path: "/dashboard/feed" },
@@ -53,24 +54,6 @@ export default function DashboardLayout() {
     }
   };
 
-  const getInitials = () => {
-    if (profile?.full_name) {
-      return profile.full_name
-        .split(" ")
-        .map((n) => n[0])
-        .join("")
-        .toUpperCase()
-        .slice(0, 2);
-    }
-    if (profile?.username) {
-      return profile.username.slice(0, 2).toUpperCase();
-    }
-    if (user?.email) {
-      return user.email.slice(0, 2).toUpperCase();
-    }
-    return "U";
-  };
-
   return (
     <div className="min-h-screen bg-background flex">
       {/* Sidebar */}
@@ -81,13 +64,13 @@ export default function DashboardLayout() {
       >
         <div className="flex items-center justify-between h-16 px-4 border-b border-sidebar-border">
           <Link to="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-secondary flex items-center justify-center shadow-[0_4px_14px_-4px_hsl(var(--primary)/0.55)]">
               <span className="font-display font-bold text-primary-foreground text-sm">
-                EC
+                CC
               </span>
             </div>
             <span className="font-display font-bold text-foreground">
-              Elite<span className="text-primary">Connect</span>
+              Coach<span className="text-primary italic">Connect</span>
             </span>
           </Link>
           <button
@@ -163,7 +146,7 @@ export default function DashboardLayout() {
               alt={profile?.full_name || "User"}
             />
             <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-              {getInitials()}
+              {getInitials(profile, user)}
             </AvatarFallback>
           </Avatar>
         </header>

@@ -22,14 +22,16 @@ import {
 
 const slides = [
   {
+    id: "exercise-library",
     icon: BookOpen,
     title: "Exercise Library",
     description:
       "Browse 1000+ drills organized by category, age group, and difficulty. Share your own exercises with the community.",
-    color: "text-emerald-500",
-    bgColor: "bg-emerald-500/10",
+    color: "text-secondary",
+    bgColor: "bg-secondary/10",
   },
   {
+    id: "tactic-board",
     icon: Target,
     title: "Tactic Board",
     description:
@@ -38,6 +40,7 @@ const slides = [
     bgColor: "bg-amber-500/10",
   },
   {
+    id: "season-planner",
     icon: Calendar,
     title: "Season Planner",
     description:
@@ -46,6 +49,7 @@ const slides = [
     bgColor: "bg-purple-500/10",
   },
   {
+    id: "professional-network",
     icon: Users,
     title: "Professional Network",
     description:
@@ -54,6 +58,7 @@ const slides = [
     bgColor: "bg-blue-500/10",
   },
   {
+    id: "real-time-messaging",
     icon: MessageSquare,
     title: "Real-Time Messaging",
     description:
@@ -62,6 +67,7 @@ const slides = [
     bgColor: "bg-pink-500/10",
   },
   {
+    id: "job-board",
     icon: Trophy,
     title: "Job Board",
     description:
@@ -158,9 +164,9 @@ export function WelcomeModal() {
 
           {/* Progress dots */}
           <div className="flex justify-center gap-2 mt-6">
-            {slides.map((_, index) => (
+            {slides.map((slide, index) => (
               <button
-                key={index}
+                key={slide.id}
                 onClick={() => goToSlide(index)}
                 className={`w-2 h-2 rounded-full transition-all duration-300 ${
                   index === currentSlide

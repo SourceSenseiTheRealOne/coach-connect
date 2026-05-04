@@ -59,10 +59,10 @@ export default function MarketplacePage() {
               placeholder="Search services..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 bg-secondary border-border text-foreground placeholder:text-muted-foreground"
+              className="pl-9 bg-muted/40 border-border text-foreground placeholder:text-muted-foreground"
             />
           </div>
-          <button className="p-2.5 rounded-lg bg-secondary border border-border text-muted-foreground hover:text-foreground transition-colors">
+          <button className="p-2.5 rounded-lg bg-muted/40 border border-border text-muted-foreground hover:text-foreground transition-colors">
             <Filter size={16} />
           </button>
         </div>

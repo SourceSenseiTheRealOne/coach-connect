@@ -76,13 +76,17 @@ const ageGroups = [
   "U18",
   "U19",
   "senior",
-];
+] as const;
+
+export type AgeGroup = (typeof ageGroups)[number];
 const planTypes = [
   { value: "2_week", label: "2 Weeks" },
   { value: "month", label: "1 Month" },
   { value: "3_month", label: "3 Months" },
   { value: "full_season", label: "Full Season" },
-];
+] as const;
+
+export type PlanType = (typeof planTypes)[number]["value"];
 
 // ============================================================
 // SESSION COLOR HELPER
@@ -90,12 +94,12 @@ const planTypes = [
 
 function getSessionColor(index: number): string {
   const colors = [
-    "bg-blue-500/20 border-blue-500/30 text-blue-300",
-    "bg-green-500/20 border-green-500/30 text-green-300",
-    "bg-purple-500/20 border-purple-500/30 text-purple-300",
-    "bg-orange-500/20 border-orange-500/30 text-orange-300",
-    "bg-pink-500/20 border-pink-500/30 text-pink-300",
-    "bg-cyan-500/20 border-cyan-500/30 text-cyan-300",
+    "bg-primary/15 border-primary/30 text-primary",
+    "bg-secondary/15 border-secondary/30 text-secondary",
+    "bg-amber-500/15 border-amber-500/30 text-amber-600 dark:text-amber-300",
+    "bg-rose-500/15 border-rose-500/30 text-rose-600 dark:text-rose-300",
+    "bg-purple-500/15 border-purple-500/30 text-purple-600 dark:text-purple-300",
+    "bg-sky-500/15 border-sky-500/30 text-sky-600 dark:text-sky-300",
   ];
   return colors[index % colors.length];
 }
@@ -112,8 +116,8 @@ function CreatePlanDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const [title, setTitle] = useState("");
-  const [ageGroup, setAgeGroup] = useState("U15");
-  const [planType, setPlanType] = useState("full_season");
+  const [ageGroup, setAgeGroup] = useState<AgeGroup>("U15");
+  const [planType, setPlanType] = useState<PlanType>("full_season");
   const [seasonStart, setSeasonStart] = useState("");
   const [seasonEnd, setSeasonEnd] = useState("");
   const createPlan = useCreateSeasonPlan();
@@ -141,6 +145,7 @@ function CreatePlanDialog({
         season_start: seasonStart,
         season_end: seasonEnd,
         plan_type: planType,
+        club_id: null,
       });
       toast({ title: "Season plan created!" });
       setTitle("");
@@ -164,14 +169,17 @@ function CreatePlanDialog({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g. U15 Season 2025/26"
-              className="bg-secondary border-border text-foreground"
+              className="bg-muted/40 border-border text-foreground"
             />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label className="text-muted-foreground">Age Group</Label>
-              <Select value={ageGroup} onValueChange={setAgeGroup}>
-                <SelectTrigger className="bg-secondary border-border text-foreground">
+              <Select
+                value={ageGroup}
+                onValueChange={(value) => setAgeGroup(value as AgeGroup)}
+              >
+                <SelectTrigger className="bg-muted/40 border-border text-foreground">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -185,8 +193,11 @@ function CreatePlanDialog({
             </div>
             <div className="space-y-2">
               <Label className="text-muted-foreground">Plan Type</Label>
-              <Select value={planType} onValueChange={setPlanType}>
-                <SelectTrigger className="bg-secondary border-border text-foreground">
+              <Select
+                value={planType}
+                onValueChange={(value) => setPlanType(value as PlanType)}
+              >
+                <SelectTrigger className="bg-muted/40 border-border text-foreground">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -206,7 +217,7 @@ function CreatePlanDialog({
                 type="date"
                 value={seasonStart}
                 onChange={(e) => setSeasonStart(e.target.value)}
-                className="bg-secondary border-border text-foreground"
+                className="bg-muted/40 border-border text-foreground"
               />
             </div>
             <div className="space-y-2">
@@ -215,7 +226,7 @@ function CreatePlanDialog({
                 type="date"
                 value={seasonEnd}
                 onChange={(e) => setSeasonEnd(e.target.value)}
-                className="bg-secondary border-border text-foreground"
+                className="bg-muted/40 border-border text-foreground"
               />
             </div>
           </div>
@@ -259,6 +270,8 @@ function SessionDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  // planId is used in the mutation below
+  void planId;
   const [title, setTitle] = useState(session?.title || "");
   const [scheduledDate, setScheduledDate] = useState(
     session?.scheduled_date || defaultDate || formatDate(new Date()),
@@ -287,8 +300,8 @@ function SessionDialog({
     try {
       if (mode === "create") {
         await createSession.mutateAsync({
-          plan_id: planId,
           title: title || null,
+          plan_id: planId,
           scheduled_date: scheduledDate,
           start_time: startTime || null,
           end_time: endTime || null,
@@ -298,7 +311,6 @@ function SessionDialog({
       } else if (session) {
         await updateSession.mutateAsync({
           id: session.id,
-          plan_id: planId,
           title: title || null,
           scheduled_date: scheduledDate,
           start_time: startTime || null,
@@ -331,7 +343,7 @@ function SessionDialog({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g. Passing & Movement"
-              className="bg-secondary border-border text-foreground"
+              className="bg-muted/40 border-border text-foreground"
             />
           </div>
           <div className="space-y-2">
@@ -340,7 +352,7 @@ function SessionDialog({
               type="date"
               value={scheduledDate}
               onChange={(e) => setScheduledDate(e.target.value)}
-              className="bg-secondary border-border text-foreground"
+              className="bg-muted/40 border-border text-foreground"
             />
           </div>
           <div className="grid grid-cols-2 gap-4">
@@ -350,7 +362,7 @@ function SessionDialog({
                 type="time"
                 value={startTime}
                 onChange={(e) => setStartTime(e.target.value)}
-                className="bg-secondary border-border text-foreground"
+                className="bg-muted/40 border-border text-foreground"
               />
             </div>
             <div className="space-y-2">
@@ -359,7 +371,7 @@ function SessionDialog({
                 type="time"
                 value={endTime}
                 onChange={(e) => setEndTime(e.target.value)}
-                className="bg-secondary border-border text-foreground"
+                className="bg-muted/40 border-border text-foreground"
               />
             </div>
           </div>
@@ -369,7 +381,7 @@ function SessionDialog({
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Session focus, objectives..."
-              className="bg-secondary border-border text-foreground resize-none min-h-[60px]"
+              className="bg-muted/40 border-border text-foreground resize-none min-h-[60px]"
             />
           </div>
           {startTime && endTime && (
@@ -412,6 +424,8 @@ function SessionDetail({
   planId: string;
   onClose: () => void;
 }) {
+  // planId is used in the delete mutation below
+  void planId;
   const { data: exercises, isLoading: loadingExercises } = useSessionExercises(
     session.id,
   );
@@ -420,7 +434,7 @@ function SessionDetail({
 
   const handleDeleteSession = async () => {
     try {
-      await deleteSession.mutateAsync({ sessionId: session.id, planId });
+      await deleteSession.mutateAsync(session.id);
       toast({ title: "Session deleted" });
       onClose();
     } catch (error) {
@@ -431,10 +445,7 @@ function SessionDetail({
 
   const handleRemoveExercise = async (sessionExerciseId: string) => {
     try {
-      await removeExercise.mutateAsync({
-        sessionExerciseId,
-        sessionId: session.id,
-      });
+      await removeExercise.mutateAsync(sessionExerciseId);
       toast({ title: "Exercise removed" });
     } catch (error) {
       console.error("Error removing exercise:", error);
@@ -479,7 +490,7 @@ function SessionDetail({
       </div>
 
       {session.notes && (
-        <p className="text-xs text-muted-foreground bg-secondary/50 p-2 rounded-md">
+        <p className="text-xs text-muted-foreground bg-muted/50 p-2 rounded-md">
           {session.notes}
         </p>
       )}
@@ -498,24 +509,24 @@ function SessionDetail({
           </div>
         ) : exercises && exercises.length > 0 ? (
           <div className="space-y-1.5">
-            {exercises.map((ex: Record<string, unknown>, i: number) => (
+            {exercises.map((ex) => (
               <div
-                key={(ex.session_exercise_id as string) || i}
-                className="flex items-center justify-between bg-secondary/50 rounded-md px-3 py-2"
+                key={ex.id}
+                className="flex items-center justify-between bg-muted/50 rounded-md px-3 py-2"
               >
                 <div className="flex-1 min-w-0">
                   <div className="text-xs font-medium text-foreground truncate">
-                    {ex.title as string}
+                    {ex.exercise.title}
                   </div>
                   <div className="text-[10px] text-muted-foreground flex items-center gap-2">
-                    <span className="capitalize">{ex.category as string}</span>
+                    <span className="capitalize">{ex.exercise.category}</span>
                     {ex.duration_minutes && (
-                      <span>{ex.duration_minutes as number}min</span>
+                      <span>{ex.duration_minutes}min</span>
                     )}
-                    {ex.difficulty && (
+                    {ex.exercise.difficulty && (
                       <span>
-                        {(ex.difficulty as string).charAt(0).toUpperCase() +
-                          (ex.difficulty as string).slice(1)}
+                        {ex.exercise.difficulty.charAt(0).toUpperCase() +
+                          ex.exercise.difficulty.slice(1)}
                       </span>
                     )}
                   </div>
@@ -523,9 +534,7 @@ function SessionDetail({
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() =>
-                    handleRemoveExercise(ex.session_exercise_id as string)
-                  }
+                  onClick={() => handleRemoveExercise(ex.id)}
                   className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
                 >
                   <X size={12} />
@@ -611,8 +620,7 @@ export default function PlannerPage() {
   if (sessions) {
     for (const s of sessions) {
       const existing = sessionsByDate.get(s.scheduled_date) || [];
-      existing.push(s);
-      sessionsByDate.set(s.scheduled_date, existing);
+      sessionsByDate.set(s.scheduled_date, [...existing, s]);
     }
   }
 
@@ -684,14 +692,14 @@ export default function PlannerPage() {
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                   selectedPlanId === plan.id
                     ? "bg-primary text-primary-foreground"
-                    : "bg-secondary text-muted-foreground hover:bg-secondary/80"
+                    : "bg-muted/40 text-muted-foreground hover:bg-muted/70"
                 }`}
               >
                 {plan.title}
               </button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="absolute -top-1 -right-1 opacity-0 group-hover:opacity-100 transition-opacity bg-secondary rounded-full p-0.5">
+                  <button className="absolute -top-1 -right-1 opacity-0 group-hover:opacity-100 transition-opacity bg-muted rounded-full p-0.5">
                     <MoreVertical size={10} className="text-muted-foreground" />
                   </button>
                 </DropdownMenuTrigger>
@@ -743,7 +751,7 @@ export default function PlannerPage() {
       >
         <button
           onClick={() => setWeekOffset((w) => w - 1)}
-          className="p-2 rounded-lg hover:bg-secondary text-muted-foreground"
+          className="p-2 rounded-lg hover:bg-muted/60 text-muted-foreground"
         >
           <ChevronLeft size={18} />
         </button>
@@ -756,13 +764,13 @@ export default function PlannerPage() {
         <div className="flex items-center gap-1">
           <button
             onClick={() => setWeekOffset(0)}
-            className="px-2 py-1 text-xs rounded-md hover:bg-secondary text-muted-foreground"
+            className="px-2 py-1 text-xs rounded-md hover:bg-muted/60 text-muted-foreground"
           >
             Today
           </button>
           <button
             onClick={() => setWeekOffset((w) => w + 1)}
-            className="p-2 rounded-lg hover:bg-secondary text-muted-foreground"
+            className="p-2 rounded-lg hover:bg-muted/60 text-muted-foreground"
           >
             <ChevronRight size={18} />
           </button>

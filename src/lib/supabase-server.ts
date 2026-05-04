@@ -20,6 +20,14 @@ if (!supabaseUrl || !serviceRoleKey) {
             autoRefreshToken: false,
             persistSession: false,
         },
+        db: {
+            schema: 'public',
+        },
+        global: {
+            headers: {
+                'x-client-info': 'coach-connect-server',
+            },
+        },
     });
 }
 

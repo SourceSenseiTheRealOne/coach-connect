@@ -47,7 +47,7 @@ const postTypeConfig: Record<string, { label: string; color: string }> = {
   },
   drill_share: {
     label: "Drill Share",
-    color: "bg-green-500/20 text-green-400",
+    color: "bg-secondary/15 text-secondary border border-secondary/25",
   },
   match_report: {
     label: "Match Report",
@@ -111,7 +111,7 @@ function ComposeBox() {
             onChange={(e) => setContent(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Share a tactical insight, drill, or update..."
-            className="bg-secondary border-border text-foreground placeholder:text-muted-foreground resize-none min-h-[80px]"
+            className="bg-muted/40 border-border text-foreground placeholder:text-muted-foreground resize-none min-h-[80px]"
             disabled={createPost.isPending}
           />
           <div className="flex items-center justify-between mt-3">
@@ -241,7 +241,7 @@ function CommentSection({
             onChange={(e) => setCommentText(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Write a comment..."
-            className="flex-1 bg-secondary border border-border rounded-md px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+            className="flex-1 bg-muted/40 border border-border rounded-md px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
             disabled={createComment.isPending}
           />
           <Button

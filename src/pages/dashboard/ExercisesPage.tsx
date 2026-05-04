@@ -352,7 +352,7 @@ function CreateExerciseDialog({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g. Diamond Passing Drill"
-              className="bg-secondary border-border text-foreground placeholder:text-muted-foreground"
+              className="bg-muted/40 border-border text-foreground placeholder:text-muted-foreground"
             />
           </div>
 
@@ -363,7 +363,7 @@ function CreateExerciseDialog({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Describe the exercise, setup, and coaching points..."
-              className="bg-secondary border-border text-foreground placeholder:text-muted-foreground resize-none min-h-[80px]"
+              className="bg-muted/40 border-border text-foreground placeholder:text-muted-foreground resize-none min-h-[80px]"
             />
           </div>
 
@@ -375,7 +375,7 @@ function CreateExerciseDialog({
                 value={category}
                 onValueChange={(v) => setCategory(v as ExerciseCategory)}
               >
-                <SelectTrigger className="bg-secondary border-border text-foreground">
+                <SelectTrigger className="bg-muted/40 border-border text-foreground">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -395,7 +395,7 @@ function CreateExerciseDialog({
                 value={difficulty}
                 onValueChange={(v) => setDifficulty(v as Difficulty)}
               >
-                <SelectTrigger className="bg-secondary border-border text-foreground">
+                <SelectTrigger className="bg-muted/40 border-border text-foreground">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -415,7 +415,7 @@ function CreateExerciseDialog({
                 value={ageGroup}
                 onValueChange={(v) => setAgeGroup(v as AgeGroup)}
               >
-                <SelectTrigger className="bg-secondary border-border text-foreground">
+                <SelectTrigger className="bg-muted/40 border-border text-foreground">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -435,7 +435,7 @@ function CreateExerciseDialog({
                 type="number"
                 value={duration}
                 onChange={(e) => setDuration(e.target.value)}
-                className="bg-secondary border-border text-foreground"
+                className="bg-muted/40 border-border text-foreground"
                 min={1}
                 max={120}
               />
@@ -450,7 +450,7 @@ function CreateExerciseDialog({
                 type="number"
                 value={minPlayers}
                 onChange={(e) => setMinPlayers(e.target.value)}
-                className="bg-secondary border-border text-foreground"
+                className="bg-muted/40 border-border text-foreground"
                 min={1}
               />
             </div>
@@ -460,7 +460,7 @@ function CreateExerciseDialog({
                 type="number"
                 value={maxPlayers}
                 onChange={(e) => setMaxPlayers(e.target.value)}
-                className="bg-secondary border-border text-foreground"
+                className="bg-muted/40 border-border text-foreground"
                 min={1}
               />
             </div>
@@ -478,7 +478,7 @@ function CreateExerciseDialog({
                   className={`px-2.5 py-1 rounded-full text-xs transition-colors ${
                     selectedEquipment.includes(eq)
                       ? "bg-primary text-primary-foreground"
-                      : "bg-secondary text-muted-foreground hover:text-foreground border border-border"
+                      : "bg-muted/40 text-muted-foreground hover:text-foreground border border-border"
                   }`}
                 >
                   {eq}
@@ -493,7 +493,7 @@ function CreateExerciseDialog({
               type="button"
               onClick={() => setIsPremium(!isPremium)}
               className={`relative w-10 h-5 rounded-full transition-colors ${
-                isPremium ? "bg-primary" : "bg-secondary border border-border"
+                isPremium ? "bg-primary" : "bg-muted/60 border border-border"
               }`}
             >
               <span
@@ -749,7 +749,7 @@ export default function ExercisesPage() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search exercises..."
-              className="pl-9 bg-secondary border-border text-foreground placeholder:text-muted-foreground"
+              className="pl-9 bg-muted/40 border-border text-foreground placeholder:text-muted-foreground"
             />
           </div>
           <button
@@ -757,7 +757,7 @@ export default function ExercisesPage() {
             className={`p-2.5 rounded-lg border transition-colors ${
               showFilters
                 ? "bg-primary text-primary-foreground border-primary"
-                : "bg-secondary border-border text-muted-foreground hover:text-foreground"
+                : "bg-muted/40 border-border text-muted-foreground hover:text-foreground"
             }`}
           >
             <Search size={16} />
@@ -817,7 +817,7 @@ export default function ExercisesPage() {
                   value={ageFilter}
                   onValueChange={(v) => setAgeFilter(v as AgeGroup | "all")}
                 >
-                  <SelectTrigger className="bg-secondary border-border text-foreground h-9 text-sm">
+                  <SelectTrigger className="bg-muted/40 border-border text-foreground h-9 text-sm">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -839,7 +839,7 @@ export default function ExercisesPage() {
                     setDifficultyFilter(v as Difficulty | "all")
                   }
                 >
-                  <SelectTrigger className="bg-secondary border-border text-foreground h-9 text-sm">
+                  <SelectTrigger className="bg-muted/40 border-border text-foreground h-9 text-sm">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -870,7 +870,7 @@ export default function ExercisesPage() {
             className={`px-3 py-1.5 rounded-full text-xs sm:px-4 sm:py-2 sm:text-sm font-medium whitespace-nowrap transition-colors ${
               activeCategory === cat
                 ? "bg-primary text-primary-foreground"
-                : "bg-secondary text-muted-foreground hover:text-foreground"
+                : "bg-muted/40 text-muted-foreground hover:text-foreground"
             }`}
           >
             {categoryConfig[cat].icon} {categoryConfig[cat].label}

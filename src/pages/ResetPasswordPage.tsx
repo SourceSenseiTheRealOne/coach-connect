@@ -159,8 +159,8 @@ export default function ResetPasswordPage() {
           </div>
 
           <div className="glass-card p-8 text-center">
-            <div className="w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center mx-auto mb-4">
-              <CheckCircle className="h-8 w-8 text-green-500" />
+            <div className="w-16 h-16 rounded-full bg-primary/10 ring-1 ring-primary/20 flex items-center justify-center mx-auto mb-4">
+              <CheckCircle className="h-8 w-8 text-primary" />
             </div>
             <p className="text-muted-foreground text-sm mb-6">
               {t("auth.signInWithNewPassword")}
@@ -217,7 +217,7 @@ export default function ResetPasswordPage() {
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="pl-10 bg-secondary border-border text-foreground placeholder:text-muted-foreground focus:ring-primary"
+                  className="pl-10 bg-muted/40 border-border text-foreground placeholder:text-muted-foreground focus:ring-primary"
                   required
                   disabled={isLoading}
                   minLength={8}
@@ -243,7 +243,7 @@ export default function ResetPasswordPage() {
                   placeholder="••••••••"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="pl-10 bg-secondary border-border text-foreground placeholder:text-muted-foreground focus:ring-primary"
+                  className="pl-10 bg-muted/40 border-border text-foreground placeholder:text-muted-foreground focus:ring-primary"
                   required
                   disabled={isLoading}
                   minLength={8}

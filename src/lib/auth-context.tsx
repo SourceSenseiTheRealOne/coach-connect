@@ -213,7 +213,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           full_name: metadata.full_name,
           user_type: metadata.user_type,
           country: "Portugal",
-        } as never);
+        });
 
         if (profileError) {
           console.error("Error creating profile:", profileError);

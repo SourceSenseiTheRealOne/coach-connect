@@ -125,7 +125,7 @@ export default function ProfilePage() {
         animate={{ opacity: 1, y: 0 }}
       >
         <div className="h-40 sm:h-52 bg-gradient-to-br from-primary/20 via-accent/10 to-background relative">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,hsl(160_84%_39%/0.15),transparent)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,hsl(var(--secondary)/0.15),transparent)]" />
         </div>
         <div className="px-6 pb-6 -mt-12 relative">
           <div className="flex flex-col sm:flex-row sm:items-end gap-4">
@@ -148,7 +148,7 @@ export default function ProfilePage() {
             <Button
               size="sm"
               variant="outline"
-              className="border-border text-foreground hover:bg-secondary gap-1 self-start"
+              className="border-border text-foreground hover:bg-muted/60 gap-1 self-start"
               onClick={handleEditClick}
             >
               <Edit size={14} /> Edit Profile
@@ -230,7 +230,7 @@ export default function ProfilePage() {
               {recentExercises.map((exercise) => (
                 <div
                   key={exercise.id}
-                  className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50 hover:bg-secondary/80 transition-colors"
+                  className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 hover:bg-muted/70 transition-colors"
                 >
                   <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center flex-shrink-0">
                     <Dumbbell size={18} className="text-primary" />

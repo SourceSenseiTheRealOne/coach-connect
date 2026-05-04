@@ -34,3 +34,6 @@ memory-bank/
 *.sw?
 .gitnexus
 .claude 
+SKILL.md 
+skills-lock.json
+.agents

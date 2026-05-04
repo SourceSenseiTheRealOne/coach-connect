@@ -19,13 +19,13 @@ export default function SubscriptionSuccessPage() {
   }, [searchParams, navigate]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <Card className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-background geometric-pattern">
+      <Card className="w-full max-w-md ed-card">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-4 w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
-            <CheckCircle2 className="w-8 h-8 text-green-600" />
+          <div className="mx-auto mb-4 w-16 h-16 rounded-full bg-primary/10 ring-1 ring-primary/20 flex items-center justify-center">
+            <CheckCircle2 className="w-8 h-8 text-primary" />
           </div>
-          <CardTitle className="text-2xl">Subscription Successful!</CardTitle>
+          <CardTitle className="text-2xl font-display">Subscription Successful</CardTitle>
           <CardDescription>
             {loading ? 'Processing your subscription...' : 'Your subscription has been activated successfully.'}
           </CardDescription>
@@ -36,8 +36,8 @@ export default function SubscriptionSuccessPage() {
               <p className="text-sm text-muted-foreground text-center">
                 You now have access to all premium features. Thank you for subscribing!
               </p>
-              <Button 
-                className="w-full" 
+              <Button
+                className="w-full rounded-full bg-foreground text-background hover:bg-foreground/90"
                 onClick={() => navigate('/dashboard')}
               >
                 Go to Dashboard

@@ -43,7 +43,7 @@ export const categoryConfig: Record<string, { label: string; icon: string }> = {
 };
 
 export const difficultyColors: Record<string, string> = {
-    beginner: "bg-green-500/10 text-green-400 border-green-500/20",
+    beginner: "bg-secondary/10 text-secondary border-secondary/20",
     intermediate: "bg-amber-500/10 text-amber-400 border-amber-500/20",
     advanced: "bg-red-500/10 text-red-400 border-red-500/20",
 };

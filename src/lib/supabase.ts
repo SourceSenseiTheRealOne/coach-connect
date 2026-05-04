@@ -32,6 +32,14 @@ export function getSupabaseClient(): SupabaseClient {
                 persistSession: true,
                 detectSessionInUrl: true,
             },
+            db: {
+                schema: 'public',
+            },
+            global: {
+                headers: {
+                    'x-client-info': 'coach-connect',
+                },
+            },
         });
     }
     return supabaseInstance;

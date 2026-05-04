@@ -108,7 +108,7 @@ function NewConversationDialog({
               placeholder="Search for coaches..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 bg-secondary border-border text-foreground placeholder:text-muted-foreground"
+              className="pl-9 bg-muted/40 border-border text-foreground placeholder:text-muted-foreground"
               autoFocus
             />
           </div>
@@ -131,7 +131,7 @@ function NewConversationDialog({
                 key={user.id}
                 onClick={() => handleStartConversation(user.id)}
                 disabled={createConversation.isPending}
-                className="w-full flex items-center gap-3 p-2.5 rounded-lg hover:bg-secondary/50 transition-colors text-left"
+                className="w-full flex items-center gap-3 p-2.5 rounded-lg hover:bg-muted/60 transition-colors text-left"
               >
                 <div className="w-10 h-10 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center shrink-0">
                   <span className="text-primary text-xs font-semibold">
@@ -312,7 +312,7 @@ export default function MessagesPage() {
                 placeholder="Search messages..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 h-9 bg-secondary border-border text-foreground text-sm placeholder:text-muted-foreground"
+                className="pl-9 h-9 bg-muted/40 border-border text-foreground text-sm placeholder:text-muted-foreground"
               />
             </div>
             <button
@@ -369,7 +369,7 @@ export default function MessagesPage() {
                     key={conv.id}
                     onClick={() => handleSelectConversation(conv.id)}
                     className={`w-full flex items-center gap-3 p-3 text-left transition-colors ${
-                      isSelected ? "bg-secondary" : "hover:bg-secondary/50"
+                      isSelected ? "bg-secondary" : "hover:bg-muted/60"
                     }`}
                   >
                     <div className="w-10 h-10 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center shrink-0">
@@ -489,7 +489,7 @@ export default function MessagesPage() {
                           className={`max-w-[70%] px-4 py-2.5 rounded-2xl text-sm ${
                             isMe
                               ? "bg-primary text-primary-foreground rounded-br-md"
-                              : "bg-secondary text-foreground rounded-bl-md"
+                              : "bg-muted/70 text-foreground rounded-bl-md"
                           }`}
                         >
                           <p className="whitespace-pre-wrap break-words">
@@ -519,7 +519,7 @@ export default function MessagesPage() {
                   value={messageInput}
                   onChange={(e) => setMessageInput(e.target.value)}
                   onKeyDown={handleKeyPress}
-                  className="bg-secondary border-border text-foreground placeholder:text-muted-foreground"
+                  className="bg-muted/40 border-border text-foreground placeholder:text-muted-foreground"
                   disabled={sendMessageMutation.isPending}
                 />
                 <button

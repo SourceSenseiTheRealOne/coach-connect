@@ -1,48 +1,14 @@
 import { router, protectedProcedure, publicProcedure } from '../trpc';
 import { TRPCError } from '@trpc/server';
-import Stripe from 'stripe';
 import { getSupabaseServerClient } from '../../lib/supabase-server';
 import { z } from 'zod';
-
-// Initialize Stripe
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-    apiVersion: '2026-04-22.dahlia',
-});
-
-// Price IDs from your Stripe account
-const PRICE_IDS = {
-    PRO_SERVICE: 'price_1TRZLgHWoHwKWIEOGA0VcMdu', // €9.99/month
-    CLUB_LICENSE: 'price_1TRZLhHWoHwKWIEOx71Pf3Wk', // €29.99/month
-};
-
-// Subscription tier mapping
-const TIER_MAPPING: Record<string, string> = {
-    [PRICE_IDS.PRO_SERVICE]: 'pro_service',
-    [PRICE_IDS.CLUB_LICENSE]: 'club_license',
-};
+import { stripeService, PRICE_IDS } from '../services/stripe';
+import { env } from '../config/env';
 
 export const subscriptionRouter = router({
     // Get available subscription plans
     getPlans: publicProcedure.query(async () => {
-        const prices = await stripe.prices.list({
-            active: true,
-            expand: ['data.product'],
-        });
-
-        // Filter to only our subscription prices
-        const subscriptionPrices = prices.data.filter(
-            (price) => price.type === 'recurring' &&
-                (price.id === PRICE_IDS.PRO_SERVICE || price.id === PRICE_IDS.CLUB_LICENSE)
-        );
-
-        return subscriptionPrices.map((price) => ({
-            id: price.id,
-            amount: price.unit_amount ? price.unit_amount / 100 : 0,
-            currency: price.currency,
-            interval: price.recurring?.interval,
-            tier: TIER_MAPPING[price.id],
-            productName: (price.product as Stripe.Product).name,
-        }));
+        return await stripeService.getPlans();
     }),
 
     // Create checkout session
@@ -70,39 +36,15 @@ export const subscriptionRouter = router({
                 .eq('status', 'active')
                 .single();
 
-            let customerId: string;
+            const frontendUrl = env.FRONTEND_URL;
 
-            if (existingSubscription?.stripe_customer_id) {
-                customerId = existingSubscription.stripe_customer_id;
-            } else {
-                // Create or get Stripe customer
-                const customer = await stripe.customers.create({
-                    email: ctx.user.email,
-                    metadata: {
-                        userId: ctx.user.id,
-                    },
-                });
-                customerId = customer.id;
-            }
-
-            // Create checkout session
-            const session = await stripe.checkout.sessions.create({
-                customer: customerId,
-                mode: 'subscription',
-                payment_method_types: ['card'],
-                line_items: [
-                    {
-                        price: priceId,
-                        quantity: 1,
-                    },
-                ],
-                success_url: `${process.env.FRONTEND_URL || 'http://localhost:8080'}/subscription/success?session_id={CHECKOUT_SESSION_ID}`,
-                cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:8080'}/subscription/canceled`,
-                metadata: {
-                    userId: ctx.user.id,
-                    priceId: priceId,
-                    tier: TIER_MAPPING[priceId],
-                },
+            const session = await stripeService.createCheckoutSession({
+                customerId: existingSubscription?.stripe_customer_id,
+                email: ctx.user.email,
+                userId: ctx.user.id,
+                priceId,
+                successUrl: `${frontendUrl}/subscription/success?session_id={CHECKOUT_SESSION_ID}`,
+                cancelUrl: `${frontendUrl}/subscription/canceled`,
             });
 
             return { sessionId: session.id, url: session.url };
@@ -149,9 +91,7 @@ export const subscriptionRouter = router({
 
             // Cancel subscription at period end
             if (subscription.stripe_subscription_id) {
-                await stripe.subscriptions.update(subscription.stripe_subscription_id, {
-                    cancel_at_period_end: true,
-                });
+                await stripeService.cancelSubscription(subscription.stripe_subscription_id);
             }
 
             // Update database
@@ -166,7 +106,7 @@ export const subscriptionRouter = router({
     // Get Stripe publishable key
     getPublishableKey: publicProcedure.query(() => {
         return {
-            publishableKey: process.env.STRIPE_PUBLISHABLE_KEY || '',
+            publishableKey: env.STRIPE_PUBLISHABLE_KEY,
         };
     }),
 });

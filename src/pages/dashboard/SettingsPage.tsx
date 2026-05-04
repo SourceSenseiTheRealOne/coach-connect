@@ -157,7 +157,7 @@ export default function SettingsPage() {
               onChange={(e) =>
                 setProfileForm({ ...profileForm, full_name: e.target.value })
               }
-              className="bg-secondary border-border text-foreground"
+              className="bg-muted/40 border-border text-foreground"
             />
           </div>
           <div className="space-y-2">
@@ -167,7 +167,7 @@ export default function SettingsPage() {
               onChange={(e) =>
                 setProfileForm({ ...profileForm, username: e.target.value })
               }
-              className="bg-secondary border-border text-foreground"
+              className="bg-muted/40 border-border text-foreground"
             />
           </div>
           <div className="space-y-2 sm:col-span-2">
@@ -177,7 +177,7 @@ export default function SettingsPage() {
               onChange={(e) =>
                 setProfileForm({ ...profileForm, bio: e.target.value })
               }
-              className="bg-secondary border-border text-foreground"
+              className="bg-muted/40 border-border text-foreground"
             />
           </div>
           <div className="space-y-2">
@@ -187,7 +187,7 @@ export default function SettingsPage() {
               onChange={(e) =>
                 setProfileForm({ ...profileForm, city: e.target.value })
               }
-              className="bg-secondary border-border text-foreground"
+              className="bg-muted/40 border-border text-foreground"
             />
           </div>
           <div className="space-y-2">
@@ -197,7 +197,7 @@ export default function SettingsPage() {
               onChange={(e) =>
                 setProfileForm({ ...profileForm, uefa_license: e.target.value })
               }
-              className="bg-secondary border-border text-foreground"
+              className="bg-muted/40 border-border text-foreground"
             />
           </div>
         </div>
@@ -279,7 +279,7 @@ export default function SettingsPage() {
                 <Button
                   size="sm"
                   variant="outline"
-                  className="border-border text-foreground hover:bg-secondary"
+                  className="border-border text-foreground hover:bg-muted/60"
                   onClick={handleCancelSubscription}
                   disabled={cancelSubscription.isPending}
                 >
@@ -293,7 +293,7 @@ export default function SettingsPage() {
               <Button
                 size="sm"
                 variant="outline"
-                className="border-border text-foreground hover:bg-secondary"
+                className="border-border text-foreground hover:bg-muted/60"
               >
                 Manage
               </Button>

@@ -1,7 +1,8 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { trpc } from "@/lib/trpc";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
+import { getInitials } from "@/lib/utils";
 import type { Post, PostComment, Profile } from "@/shared/types";
 import { useCallback } from "react";
 
@@ -46,14 +47,7 @@ export function timeAgo(dateString: string): string {
 // GET INITIALS
 // ============================================================
 
-export function getInitials(name: string): string {
-    return name
-        .split(" ")
-        .map((n) => n[0])
-        .join("")
-        .toUpperCase()
-        .slice(0, 2);
-}
+export { getInitials };
 
 // ============================================================
 // QUERY KEYS
@@ -74,23 +68,21 @@ async function fetchAuthors(authorIds: string[]): Promise<Record<string, Profile
     if (!authorIds.length) return {};
 
     try {
-        const response = await fetch(
-            `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/profiles?select=id,username,full_name,avatar_url,user_type,uefa_license,is_verified,city&id=in.(${authorIds.join(',')})`,
-            {
-                headers: {
-                    'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY || '',
-                    'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY || ''}`,
-                },
-            }
-        );
+        const { data, error } = await supabase
+            .from('profiles')
+            .select('id,username,full_name,avatar_url,user_type,uefa_license,is_verified,city')
+            .in('id', authorIds);
 
-        if (!response.ok) {
-            console.error("[Feed] Error fetching authors:", response.status);
+        if (error) {
+            console.error("[Feed] Error fetching authors:", error);
             return {};
         }
 
-        const authorList = await response.json();
-        return Object.fromEntries(authorList.map((a: Profile) => [a.id, a]));
+        const authors: Record<string, Profile> = {};
+        for (const a of data || []) {
+            authors[a.id] = a as Profile;
+        }
+        return authors;
     } catch (err) {
         console.error("[Feed] Error fetching authors:", err);
         return {};
@@ -118,46 +110,31 @@ export function useFeedPosts() {
     );
 
     if (postsError) {
-        console.error("[useFeedPosts] tRPC error details:", postsError);
-        console.error("[useFeedPosts] tRPC error message:", postsError.message);
-        if ('data' in postsError && typeof postsError === 'object' && postsError !== null) {
-            console.error("[useFeedPosts] tRPC error data:", (postsError as { data?: unknown }).data);
-        }
+        console.error("[useFeedPosts] tRPC error:", postsError);
     }
-
-    console.log("[useFeedPosts] tRPC posts data:", postsData);
-    console.log("[useFeedPosts] tRPC posts loading:", postsLoading);
-    console.log("[useFeedPosts] tRPC posts error:", postsError);
 
     // Use React Query to fetch and combine with authors
     const combinedQuery = useQuery({
         queryKey: [...feedKeys.posts(), "with-authors", user?.id],
         queryFn: async (): Promise<PostWithAuthor[]> => {
-            console.log("[useFeedPosts] Combining with authors...");
             const posts = postsData?.items || [];
             if (!posts.length) return [];
 
             // Fetch author profiles
             const authorIds = [...new Set(posts.map((p) => p.author_id).filter(Boolean))];
-            console.log("[useFeedPosts] Fetching authors:", authorIds);
             const authors = await fetchAuthors(authorIds);
-            console.log("[useFeedPosts] Got authors:", Object.keys(authors));
 
             // Fetch like status for all posts if user is logged in
             let likeStatuses: Record<string, boolean> = {};
             if (user) {
                 try {
-                    const response = await fetch(
-                        `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/post_likes?select=post_id,user_id&user_id=eq.${user.id}`,
-                        {
-                            headers: {
-                                'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY || '',
-                                'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY || ''}`,
-                            },
-                        }
-                    );
-                    if (response.ok) {
-                        const likes = await response.json();
+                    const { data: likes, error } = await supabase
+                        .from('post_likes')
+                        .select('post_id')
+                        .eq('user_id', user.id)
+                        .in('post_id', posts.map(p => p.id));
+
+                    if (!error && likes) {
                         likeStatuses = Object.fromEntries(likes.map((l: { post_id: string }) => [l.post_id, true]));
                     }
                 } catch (err) {
@@ -175,9 +152,6 @@ export function useFeedPosts() {
         enabled: !!postsData?.items && !postsLoading,
         staleTime: 30 * 1000,
     });
-
-    console.log("[useFeedPosts] Combined data:", combinedQuery.data);
-    console.log("[useFeedPosts] Combined loading:", combinedQuery.isLoading);
 
     return combinedQuery;
 }
@@ -221,6 +195,7 @@ export function useCreatePost() {
         const post = await createMutation.mutateAsync({
             content,
             post_type: "general",
+            exercise_id: null,
             media_urls: [],
         });
 

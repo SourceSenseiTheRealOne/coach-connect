@@ -177,10 +177,10 @@ export default function JobsPage() {
               placeholder="Search positions..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 bg-secondary border-border text-foreground placeholder:text-muted-foreground"
+              className="pl-9 bg-muted/40 border-border text-foreground placeholder:text-muted-foreground"
             />
           </div>
-          <button className="p-2.5 rounded-lg bg-secondary border border-border text-muted-foreground hover:text-foreground transition-colors">
+          <button className="p-2.5 rounded-lg bg-muted/40 border border-border text-muted-foreground hover:text-foreground transition-colors">
             <Filter size={16} />
           </button>
         </div>
@@ -307,7 +307,7 @@ export default function JobsPage() {
                         | "other",
                     })
                   }
-                  className="w-full px-3 py-2 rounded-md bg-secondary border border-border text-foreground"
+                  className="w-full px-3 py-2 rounded-md bg-muted/40 border border-border text-foreground"
                 >
                   <option value="head_coach">Head Coach</option>
                   <option value="assistant_coach">Assistant Coach</option>
@@ -345,7 +345,7 @@ export default function JobsPage() {
                         | "senior",
                     })
                   }
-                  className="w-full px-3 py-2 rounded-md bg-secondary border border-border text-foreground"
+                  className="w-full px-3 py-2 rounded-md bg-muted/40 border border-border text-foreground"
                 >
                   <option value="senior">Senior</option>
                   <option value="U19">U19</option>
@@ -468,11 +468,11 @@ export default function JobsPage() {
                   <Badge variant="outline">{selectedJob.salary_range}</Badge>
                 )}
                 {selectedJob.is_paid ? (
-                  <Badge className="bg-green-500/20 text-green-500 border-green-500/20">
+                  <Badge className="bg-primary/15 text-primary border-primary/25">
                     Paid
                   </Badge>
                 ) : (
-                  <Badge className="bg-blue-500/20 text-blue-500 border-blue-500/20">
+                  <Badge className="bg-secondary/15 text-secondary border-secondary/25">
                     Volunteer
                   </Badge>
                 )}
@@ -517,7 +517,7 @@ export default function JobsPage() {
                 {hasApplied ? (
                   <Button
                     disabled
-                    className="bg-green-500 text-white hover:bg-green-600"
+                    className="bg-primary text-primary-foreground"
                   >
                     Applied ✓
                   </Button>
