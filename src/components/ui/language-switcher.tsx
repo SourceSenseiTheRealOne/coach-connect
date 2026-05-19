@@ -26,7 +26,7 @@ export function LanguageSwitcher({ variant = "default" }: LanguageSwitcherProps)
   if (variant === "minimal") {
     return (
       <Select value={language} onValueChange={handleLanguageChange}>
-        <SelectTrigger className="w-[140px] h-8 bg-secondary border-border text-foreground">
+        <SelectTrigger className="w-[140px] h-8 bg-background border-border text-foreground hover:bg-muted/50 transition-colors">
           <SelectValue placeholder={t("settings.language.selectPlaceholder")}>
             <span className="flex items-center gap-2">
               <span>{currentLanguage?.flag}</span>
@@ -55,7 +55,7 @@ export function LanguageSwitcher({ variant = "default" }: LanguageSwitcherProps)
   if (variant === "button") {
     return (
       <Select value={language} onValueChange={handleLanguageChange}>
-        <SelectTrigger className="w-[180px] bg-secondary border-border text-foreground hover:bg-secondary/80 transition-colors">
+        <SelectTrigger className="w-[180px] bg-background border-border text-foreground hover:bg-muted/50 transition-colors">
           <Globe className="w-4 h-4 mr-2 text-primary" />
           <SelectValue placeholder={t("settings.language.selectPlaceholder")}>
             <span className="flex items-center gap-2">
@@ -93,7 +93,7 @@ export function LanguageSwitcher({ variant = "default" }: LanguageSwitcherProps)
           </span>
         </div>
         <Select value={language} onValueChange={handleLanguageChange}>
-          <SelectTrigger className="w-[200px] bg-secondary border-border text-foreground">
+          <SelectTrigger className="w-[200px] bg-background border-border text-foreground hover:bg-muted/50 transition-colors">
             <SelectValue placeholder={t("settings.language.selectPlaceholder")}>
               <span className="flex items-center gap-2">
                 <span>{currentLanguage?.flag}</span>

@@ -27,8 +27,8 @@ const slides = [
     title: "Exercise Library",
     description:
       "Browse 1000+ drills organized by category, age group, and difficulty. Share your own exercises with the community.",
-    color: "text-secondary",
-    bgColor: "bg-secondary/10",
+    color: "text-muted-foreground",
+    bgColor: "bg-muted/60",
   },
   {
     id: "tactic-board",

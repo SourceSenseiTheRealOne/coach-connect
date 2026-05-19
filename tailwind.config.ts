@@ -119,7 +119,6 @@ export default {
       },
     },
   },
-  // tailwindcss-animate uses CommonJS - disable lint rules for this line
-  // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   plugins: [require("tailwindcss-animate")],
 } satisfies Config;

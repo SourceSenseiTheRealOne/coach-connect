@@ -21,6 +21,10 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/lib/auth-context";
 import { toast } from "sonner";
 import { getInitials } from "@/lib/utils";
+import {
+  useUnreadMessageCount,
+  useMessagingRealtime,
+} from "@/hooks/use-messaging";
 
 const sidebarLinks = [
   { icon: Home, label: "Feed", path: "/dashboard/feed" },
@@ -41,6 +45,16 @@ export default function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user, profile, signOut } = useAuth();
   const [isSigningOut, setIsSigningOut] = useState(false);
+
+  // Realtime subscription for incoming messages so the bell badge updates instantly
+  useMessagingRealtime(null);
+  const unreadQuery = useUnreadMessageCount(!!user);
+  const unreadCount = unreadQuery.data?.count ?? 0;
+  const displayUnread = unreadCount > 99 ? "99+" : String(unreadCount);
+
+  const handleNotificationsClick = () => {
+    navigate("/dashboard/messages");
+  };
 
   const handleSignOut = async () => {
     setIsSigningOut(true);
@@ -64,7 +78,7 @@ export default function DashboardLayout() {
       >
         <div className="flex items-center justify-between h-16 px-4 border-b border-sidebar-border">
           <Link to="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-secondary flex items-center justify-center shadow-[0_4px_14px_-4px_hsl(var(--primary)/0.55)]">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-[0_4px_14px_-4px_hsl(var(--primary)/0.55)]">
               <span className="font-display font-bold text-primary-foreground text-sm">
                 CC
               </span>
@@ -134,11 +148,25 @@ export default function DashboardLayout() {
             <Menu size={20} />
           </button>
           <div className="flex-1" />
-          <button className="relative text-muted-foreground hover:text-foreground transition-colors">
+          <button
+            onClick={handleNotificationsClick}
+            aria-label={
+              unreadCount > 0
+                ? `${unreadCount} unread message${unreadCount === 1 ? "" : "s"}`
+                : "Messages"
+            }
+            className="relative text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md"
+          >
             <Bell size={20} />
-            <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-primary text-primary-foreground text-[10px] flex items-center justify-center font-bold">
-              3
-            </span>
+            {unreadCount > 0 && (
+              <span
+                className={`absolute -top-1 -right-1 ${
+                  unreadCount > 9 ? "min-w-[18px] px-1" : "w-4"
+                } h-4 rounded-full bg-primary text-primary-foreground text-[10px] flex items-center justify-center font-bold leading-none`}
+              >
+                {displayUnread}
+              </span>
+            )}
           </button>
           <Avatar className="h-8 w-8">
             <AvatarImage

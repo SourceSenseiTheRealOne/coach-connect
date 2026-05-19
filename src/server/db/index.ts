@@ -10,17 +10,21 @@ export const supabase = getSupabaseServerClient();
 
 import type {
     Profile,
+    PublicProfileSummary,
     ClubProfile,
     ClubMember,
     ClubStaff,
     Exercise,
+    ExerciseWithAuthor,
     ExerciseReview,
     SeasonPlan,
     TrainingSession,
     SessionExercise,
     TacticBoard,
     Post,
+    PostWithAuthor,
     PostComment,
+    CommentWithAuthor,
     Connection,
     Conversation,
     ConversationParticipant,
@@ -34,9 +38,38 @@ import type {
     MatchRequest,
     MarketplaceListing,
     MarketplaceReview,
+    MarketplaceOrder,
+    SellerPayoutProfile,
     Notification,
+    UserSettings,
     PaginatedResponse,
 } from '../../shared/types';
+
+type EmbeddedProfile = PublicProfileSummary | PublicProfileSummary[] | null;
+
+function normalizeEmbeddedProfile(profile: EmbeddedProfile): PublicProfileSummary | null {
+    return Array.isArray(profile) ? (profile[0] ?? null) : profile;
+}
+
+const profileSummarySelect = 'id, username, full_name, avatar_url, user_type, uefa_license, is_verified, city';
+const profileSelect = 'id, username, full_name, avatar_url, cover_image_url, bio, user_type, uefa_license, is_verified, city, district, country, subscription_tier, stripe_customer_id, subscription_expires_at, profile_views, created_at, updated_at';
+const exerciseSelect = 'id, author_id, title, description, category, age_group, difficulty, image_url, animation_url, video_url, diagram_data, min_players, max_players, duration_minutes, equipment, is_premium, is_approved, status, likes_count, views_count, created_at, updated_at';
+const postSelect = 'id, author_id, content, post_type, media_urls, exercise_id, likes_count, comments_count, shares_count, created_at, updated_at';
+const jobListingSelect = 'id, club_id, created_by_id, title, description, job_type, age_group, is_paid, salary_range, location, application_deadline, is_active, applications_count, created_at, updated_at';
+const marketplaceListingSelect = 'id, seller_id, title, description, service_type, price_cents, price_type, currency, images, service_area, is_remote, is_active, is_featured, views_count, stripe_price_id, created_at, updated_at';
+const sellerPayoutProfileSelect = 'user_id, account_holder_name, payout_method, country, currency, bank_reference, bank_reference_last4, created_at, updated_at';
+const marketplaceOrderSelect = 'id, listing_id, buyer_id, seller_id, status, gross_amount_cents, platform_fee_cents, seller_net_cents, currency, stripe_checkout_session_id, stripe_payment_intent_id, paid_at, payout_status, payout_due_at, payout_processed_at, payout_reference, admin_note, created_at, updated_at';
+const notificationSelect = 'id, user_id, type, title, body, reference_type, reference_id, actor_id, is_read, created_at';
+const userSettingsSelect = 'user_id, new_messages, exercise_likes, new_followers, job_opportunities, platform_updates, language, created_at, updated_at';
+
+export const defaultUserSettings = {
+    new_messages: true,
+    exercise_likes: true,
+    new_followers: true,
+    job_opportunities: true,
+    platform_updates: false,
+    language: 'en',
+} as const;
 
 // ============================================================
 // PROFILES
@@ -47,7 +80,7 @@ export const profiles = {
         const supabase = getSupabaseServerClient();
         const { data, error } = await supabase
             .from('profiles')
-            .select('*')
+            .select(profileSelect)
             .eq('id', id)
             .single();
         if (error) return null;
@@ -58,7 +91,7 @@ export const profiles = {
         const supabase = getSupabaseServerClient();
         const { data, error } = await supabase
             .from('profiles')
-            .select('*')
+            .select(profileSelect)
             .eq('username', username)
             .single();
         if (error) return null;
@@ -86,11 +119,75 @@ export const profiles = {
         const supabase = getSupabaseServerClient();
         const { data, error } = await supabase
             .from('profiles')
-            .select('*')
+            .select(profileSelect)
             .or(`username.ilike.%${query}%,full_name.ilike.%${query}%`)
             .limit(limit);
         if (error) return [];
         return data as Profile[];
+    },
+};
+
+// ============================================================
+// USER SETTINGS
+// ============================================================
+
+export const userSettings = {
+    getByUser: async (userId: string): Promise<UserSettings | null> => {
+        const supabase = getSupabaseServerClient();
+        const { data, error } = await supabase
+            .from('user_settings')
+            .select(userSettingsSelect)
+            .eq('user_id', userId)
+            .maybeSingle();
+
+        if (error) return null;
+        return data as UserSettings | null;
+    },
+
+    getOrCreate: async (userId: string): Promise<UserSettings | null> => {
+        const existing = await userSettings.getByUser(userId);
+        if (existing) return existing;
+
+        const supabase = getSupabaseServerClient();
+        const { data, error } = await supabase
+            .from('user_settings')
+            .insert({
+                user_id: userId,
+                ...defaultUserSettings,
+            })
+            .select(userSettingsSelect)
+            .single();
+
+        if (error) return null;
+        return data as UserSettings;
+    },
+
+    update: async (
+        userId: string,
+        updates: Partial<Omit<UserSettings, 'user_id' | 'created_at' | 'updated_at'>>,
+    ): Promise<UserSettings | null> => {
+        const existing = await userSettings.getOrCreate(userId);
+        if (!existing) return null;
+
+        const supabase = getSupabaseServerClient();
+        const { data, error } = await supabase
+            .from('user_settings')
+            .upsert({
+                user_id: userId,
+                new_messages: existing.new_messages,
+                exercise_likes: existing.exercise_likes,
+                new_followers: existing.new_followers,
+                job_opportunities: existing.job_opportunities,
+                platform_updates: existing.platform_updates,
+                language: existing.language,
+                ...updates,
+                updated_at: new Date().toISOString(),
+            }, { onConflict: 'user_id' })
+            .select(userSettingsSelect)
+            .single();
+
+        if (error) return null;
+        return data as UserSettings;
     },
 };
 
@@ -180,13 +277,16 @@ export const exercises = {
         author_id?: string;
         is_premium?: boolean;
         userId?: string;
-    }): Promise<PaginatedResponse<Exercise>> => {
+    }): Promise<PaginatedResponse<ExerciseWithAuthor>> => {
         const supabase = getSupabaseServerClient();
-        const { page, pageSize, category, age_group, difficulty, search, author_id, is_premium } = params;
+        const { page, pageSize, category, age_group, difficulty, search, author_id, is_premium, userId } = params;
 
         let query = supabase
             .from('exercises')
-            .select('*', { count: 'exact' });
+            .select(`
+                ${exerciseSelect},
+                author:profiles!exercises_author_id_fkey(${profileSummarySelect})
+            `, { count: 'exact' });
 
         if (category) query = query.eq('category', category);
         if (age_group) query = query.eq('age_group', age_group);
@@ -206,8 +306,26 @@ export const exercises = {
             return { items: [], total: 0, page, pageSize, totalPages: 0 };
         }
 
+        const exerciseRows = (data ?? []) as Array<Exercise & { author: EmbeddedProfile }>;
+        const exerciseIds = exerciseRows.map((exercise) => exercise.id);
+        let likedIds = new Set<string>();
+
+        if (userId && exerciseIds.length) {
+            const { data: likes } = await supabase
+                .from('exercise_likes')
+                .select('exercise_id')
+                .eq('user_id', userId)
+                .in('exercise_id', exerciseIds);
+
+            likedIds = new Set((likes ?? []).map((like) => like.exercise_id as string));
+        }
+
         return {
-            items: data as Exercise[],
+            items: exerciseRows.map((exercise) => ({
+                ...exercise,
+                author: normalizeEmbeddedProfile(exercise.author),
+                isLikedByMe: likedIds.has(exercise.id),
+            })),
             total: count || 0,
             page,
             pageSize,
@@ -219,7 +337,7 @@ export const exercises = {
         const supabase = getSupabaseServerClient();
         const { data, error } = await supabase
             .from('exercises')
-            .select('*')
+            .select(exerciseSelect)
             .eq('id', id)
             .single();
         if (error) return null;
@@ -267,7 +385,7 @@ export const exercises = {
         const supabase = getSupabaseServerClient();
         const { data, error } = await supabase
             .from('exercises')
-            .select('*')
+            .select(exerciseSelect)
             .eq('author_id', authorId)
             .order('created_at', { ascending: false });
         if (error) return [];
@@ -344,13 +462,17 @@ export const posts = {
         pageSize: number;
         author_id?: string;
         post_type?: string;
-    }): Promise<PaginatedResponse<Post>> => {
+        userId?: string;
+    }): Promise<PaginatedResponse<PostWithAuthor>> => {
         const supabase = getSupabaseServerClient();
-        const { page, pageSize, author_id, post_type } = params;
+        const { page, pageSize, author_id, post_type, userId } = params;
 
         let query = supabase
             .from('posts')
-            .select('*', { count: 'exact' });
+            .select(`
+                ${postSelect},
+                author:profiles!posts_author_id_fkey(${profileSummarySelect})
+            `, { count: 'exact' });
 
         if (author_id) query = query.eq('author_id', author_id);
         if (post_type) query = query.eq('post_type', post_type);
@@ -366,8 +488,26 @@ export const posts = {
             return { items: [], total: 0, page, pageSize, totalPages: 0 };
         }
 
+        const postRows = (data ?? []) as Array<Post & { author: EmbeddedProfile }>;
+        const postIds = postRows.map((post) => post.id);
+        let likedIds = new Set<string>();
+
+        if (userId && postIds.length) {
+            const { data: likes } = await supabase
+                .from('post_likes')
+                .select('post_id')
+                .eq('user_id', userId)
+                .in('post_id', postIds);
+
+            likedIds = new Set((likes ?? []).map((like) => like.post_id as string));
+        }
+
         return {
-            items: data as Post[],
+            items: postRows.map((post) => ({
+                ...post,
+                author: normalizeEmbeddedProfile(post.author),
+                isLikedByMe: likedIds.has(post.id),
+            })),
             total: count || 0,
             page,
             pageSize,
@@ -379,7 +519,7 @@ export const posts = {
         const supabase = getSupabaseServerClient();
         const { data, error } = await supabase
             .from('posts')
-            .select('*')
+            .select(postSelect)
             .eq('id', id)
             .single();
         if (error) return null;
@@ -419,15 +559,21 @@ export const posts = {
     },
 
     // Comments
-    getComments: async (postId: string): Promise<PostComment[]> => {
+    getComments: async (postId: string): Promise<CommentWithAuthor[]> => {
         const supabase = getSupabaseServerClient();
         const { data, error } = await supabase
             .from('post_comments')
-            .select('*')
+            .select(`
+                id, post_id, author_id, content, parent_comment_id, created_at,
+                author:profiles!post_comments_author_id_fkey(${profileSummarySelect})
+            `)
             .eq('post_id', postId)
             .order('created_at', { ascending: true });
         if (error) return [];
-        return data as PostComment[];
+        return ((data ?? []) as Array<PostComment & { author: EmbeddedProfile }>).map((comment) => ({
+            ...comment,
+            author: normalizeEmbeddedProfile(comment.author),
+        }));
     },
 
     createComment: async (data: Partial<PostComment>): Promise<PostComment | null> => {
@@ -565,7 +711,7 @@ export const connections = {
 // ============================================================
 
 export const messaging = {
-    getConversations: async (userId: string): Promise<(Conversation & { participants: Profile[], last_message?: Message })[]> => {
+    getConversations: async (userId: string): Promise<(Conversation & { participants: Profile[], last_message?: Message, my_last_read_at: string | null })[]> => {
         const supabase = getSupabaseServerClient();
 
         // Get conversation IDs where user is a participant
@@ -610,15 +756,22 @@ export const messaging = {
         }
 
         const result = (conversations || []).map((conv) => {
-            const participants = conv.conversation_participants
-                .map((p: { profile: Profile }) => p.profile)
+            const rawParticipants = conv.conversation_participants as Array<{
+                user_id: string;
+                last_read_at: string | null;
+                profile: Profile;
+            }>;
+            const participants = rawParticipants
+                .map((p) => p.profile)
                 .filter(Boolean);
+            const myEntry = rawParticipants.find((p) => p.user_id === userId);
 
             return {
                 ...conv,
                 participants,
                 last_message: lastMessageMap.get(conv.id) || undefined,
-            } as Conversation & { participants: Profile[], last_message?: Message };
+                my_last_read_at: myEntry?.last_read_at ?? null,
+            } as Conversation & { participants: Profile[], last_message?: Message, my_last_read_at: string | null };
         });
 
         return result;
@@ -649,6 +802,45 @@ export const messaging = {
         if (partError) return null;
 
         return conversation as Conversation;
+    },
+
+    getOrCreateDirectConversation: async (userAId: string, userBId: string): Promise<Conversation | null> => {
+        const supabase = getSupabaseServerClient();
+        if (userAId === userBId) return null;
+
+        const { data: userAConversations, error: userAError } = await supabase
+            .from('conversation_participants')
+            .select('conversation_id')
+            .eq('user_id', userAId);
+        if (userAError) return null;
+
+        const conversationIds = (userAConversations || []).map((row) => row.conversation_id);
+        if (conversationIds.length > 0) {
+            const { data: existingParticipants } = await supabase
+                .from('conversation_participants')
+                .select('conversation_id, user_id')
+                .in('conversation_id', conversationIds);
+
+            const grouped = new Map<string, Set<string>>();
+            for (const participant of existingParticipants || []) {
+                const set = grouped.get(participant.conversation_id) ?? new Set<string>();
+                set.add(participant.user_id);
+                grouped.set(participant.conversation_id, set);
+            }
+
+            for (const [conversationId, participantIds] of grouped) {
+                if (participantIds.size === 2 && participantIds.has(userAId) && participantIds.has(userBId)) {
+                    const { data: conversation, error } = await supabase
+                        .from('conversations')
+                        .select('*')
+                        .eq('id', conversationId)
+                        .single();
+                    if (!error) return conversation as Conversation;
+                }
+            }
+        }
+
+        return messaging.createConversation([userAId, userBId]);
     },
 
     getMessages: async (conversationId: string, page = 1, pageSize = 50): Promise<Message[]> => {
@@ -700,6 +892,97 @@ export const messaging = {
             .eq('conversation_id', conversationId)
             .eq('user_id', userId);
         return !error;
+    },
+
+    searchUsers: async (query: string, currentUserId: string, limit = 15): Promise<Profile[]> => {
+        const supabase = getSupabaseServerClient();
+        const trimmed = query.trim();
+        if (!trimmed) return [];
+
+        const escaped = trimmed.replace(/[%_,]/g, (c) => `\\${c}`);
+        const looksLikeEmail = /@/.test(trimmed);
+        const matchedIds = new Set<string>();
+        const merged: Profile[] = [];
+
+        // Profile name/username matches
+        const { data: profileMatches } = await supabase
+            .from('profiles')
+            .select(profileSelect)
+            .neq('id', currentUserId)
+            .or(`username.ilike.%${escaped}%,full_name.ilike.%${escaped}%`)
+            .limit(limit);
+
+        for (const row of (profileMatches || []) as Profile[]) {
+            if (!matchedIds.has(row.id)) {
+                matchedIds.add(row.id);
+                merged.push(row);
+            }
+        }
+
+        // If query looks like email or no name match found, try email search via auth.admin
+        if (looksLikeEmail || merged.length < limit) {
+            try {
+                // listUsers can be paginated; we keep it bounded since it's a service role admin call.
+                const { data: usersData } = await supabase.auth.admin.listUsers({
+                    page: 1,
+                    perPage: 200,
+                });
+                const lower = trimmed.toLowerCase();
+                const emailUserIds: string[] = [];
+                for (const u of usersData?.users || []) {
+                    if (u.id === currentUserId) continue;
+                    if (u.email && u.email.toLowerCase().includes(lower)) {
+                        emailUserIds.push(u.id);
+                    }
+                    if (emailUserIds.length >= limit) break;
+                }
+                const newIds = emailUserIds.filter((id) => !matchedIds.has(id));
+                if (newIds.length > 0) {
+                    const { data: emailProfileRows } = await supabase
+                        .from('profiles')
+                        .select(profileSelect)
+                        .in('id', newIds);
+                    for (const row of (emailProfileRows || []) as Profile[]) {
+                        if (!matchedIds.has(row.id)) {
+                            matchedIds.add(row.id);
+                            merged.push(row);
+                        }
+                    }
+                }
+            } catch {
+                // auth.admin not available or failed - fall back to profile-only matches
+            }
+        }
+
+        return merged.slice(0, limit);
+    },
+
+    getUnreadCount: async (userId: string): Promise<number> => {
+        const supabase = getSupabaseServerClient();
+
+        const { data: participations } = await supabase
+            .from('conversation_participants')
+            .select('conversation_id, last_read_at')
+            .eq('user_id', userId);
+
+        if (!participations || participations.length === 0) return 0;
+
+        let total = 0;
+        // Run counts in parallel to keep this snappy.
+        const results = await Promise.all(
+            participations.map(async (p) => {
+                const lastRead = p.last_read_at || '1970-01-01T00:00:00Z';
+                const { count } = await supabase
+                    .from('messages')
+                    .select('id', { count: 'exact', head: true })
+                    .eq('conversation_id', p.conversation_id)
+                    .neq('sender_id', userId)
+                    .gt('created_at', lastRead);
+                return count || 0;
+            }),
+        );
+        for (const c of results) total += c;
+        return total;
     },
 };
 
@@ -942,7 +1225,7 @@ export const jobs = {
 
         let query = supabase
             .from('job_listings')
-            .select('*', { count: 'exact' });
+            .select(jobListingSelect, { count: 'exact' });
 
         if (job_type) query = query.eq('job_type', job_type);
         if (age_group) query = query.eq('age_group', age_group);
@@ -1036,6 +1319,17 @@ export const jobs = {
         return data as JobApplication;
     },
 
+    getApplicationById: async (id: string): Promise<JobApplication | null> => {
+        const supabase = getSupabaseServerClient();
+        const { data, error } = await supabase
+            .from('job_applications')
+            .select('*')
+            .eq('id', id)
+            .single();
+        if (error) return null;
+        return data as JobApplication;
+    },
+
     apply: async (data: Partial<JobApplication>): Promise<JobApplication | null> => {
         const supabase = getSupabaseServerClient();
         const { data: application, error } = await supabase
@@ -1073,6 +1367,17 @@ export const forum = {
             .order('sort_order', { ascending: true });
         if (error) return [];
         return data as ForumCategory[];
+    },
+
+    createCategory: async (data: Partial<ForumCategory>): Promise<ForumCategory | null> => {
+        const supabase = getSupabaseServerClient();
+        const { data: row, error } = await supabase
+            .from('forum_categories')
+            .insert(data)
+            .select()
+            .single();
+        if (error) return null;
+        return row as ForumCategory;
     },
 
     getThreads: async (params: {
@@ -1356,6 +1661,50 @@ export const matchRequests = {
 // MARKETPLACE
 // ============================================================
 
+export const sellerPayoutProfiles = {
+    getByUser: async (userId: string): Promise<SellerPayoutProfile | null> => {
+        const supabase = getSupabaseServerClient();
+        const { data, error } = await supabase
+            .from('seller_payout_profiles')
+            .select(sellerPayoutProfileSelect)
+            .eq('user_id', userId)
+            .maybeSingle();
+        if (error) return null;
+        return data as SellerPayoutProfile | null;
+    },
+
+    upsert: async (
+        userId: string,
+        data: Omit<SellerPayoutProfile, 'user_id' | 'bank_reference_last4' | 'created_at' | 'updated_at'>,
+    ): Promise<SellerPayoutProfile | null> => {
+        const supabase = getSupabaseServerClient();
+        const cleanReference = data.bank_reference.replace(/\s+/g, '').toUpperCase();
+        const { data: profile, error } = await supabase
+            .from('seller_payout_profiles')
+            .upsert({
+                ...data,
+                user_id: userId,
+                bank_reference: cleanReference,
+                bank_reference_last4: cleanReference.slice(-4),
+                updated_at: new Date().toISOString(),
+            }, { onConflict: 'user_id' })
+            .select(sellerPayoutProfileSelect)
+            .single();
+        if (error) return null;
+        return profile as SellerPayoutProfile;
+    },
+
+    listForAdmin: async (): Promise<SellerPayoutProfile[]> => {
+        const supabase = getSupabaseServerClient();
+        const { data, error } = await supabase
+            .from('seller_payout_profiles')
+            .select(sellerPayoutProfileSelect)
+            .order('updated_at', { ascending: false });
+        if (error) return [];
+        return data as SellerPayoutProfile[];
+    },
+};
+
 export const marketplace = {
     list: async (params: {
         page: number;
@@ -1370,13 +1719,16 @@ export const marketplace = {
 
         let query = supabase
             .from('marketplace_listings')
-            .select('*', { count: 'exact' })
+            .select(marketplaceListingSelect, { count: 'exact' })
             .eq('is_active', true);
 
         if (service_type) query = query.eq('service_type', service_type);
         if (service_area) query = query.ilike('service_area', `%${service_area}%`);
         if (is_remote !== undefined) query = query.eq('is_remote', is_remote);
-        if (search) query = query.ilike('title', `%${search}%`);
+        if (search) {
+            const sanitizedSearch = search.replace(/[%_]/g, '\\$&');
+            query = query.or(`title.ilike.%${sanitizedSearch}%,description.ilike.%${sanitizedSearch}%`);
+        }
 
         const from = (page - 1) * pageSize;
         const to = from + pageSize - 1;
@@ -1419,6 +1771,18 @@ export const marketplace = {
             .order('created_at', { ascending: false });
         if (error) return [];
         return data as MarketplaceListing[];
+    },
+
+    getReviewByReviewer: async (listingId: string, reviewerId: string): Promise<MarketplaceReview | null> => {
+        const supabase = getSupabaseServerClient();
+        const { data, error } = await supabase
+            .from('marketplace_reviews')
+            .select('*')
+            .eq('listing_id', listingId)
+            .eq('reviewer_id', reviewerId)
+            .maybeSingle();
+        if (error) return null;
+        return data as MarketplaceReview | null;
     },
 
     create: async (data: Partial<MarketplaceListing>): Promise<MarketplaceListing | null> => {
@@ -1477,6 +1841,77 @@ export const marketplace = {
     },
 };
 
+export const marketplaceOrders = {
+    create: async (
+        data: Pick<MarketplaceOrder, 'listing_id' | 'buyer_id' | 'seller_id' | 'gross_amount_cents' | 'platform_fee_cents' | 'seller_net_cents' | 'currency'>,
+    ): Promise<MarketplaceOrder | null> => {
+        const supabase = getSupabaseServerClient();
+        const { data: order, error } = await supabase
+            .from('marketplace_orders')
+            .insert(data)
+            .select(marketplaceOrderSelect)
+            .single();
+        if (error) return null;
+        return order as MarketplaceOrder;
+    },
+
+    update: async (id: string, updates: Partial<MarketplaceOrder>): Promise<MarketplaceOrder | null> => {
+        const supabase = getSupabaseServerClient();
+        const { data, error } = await supabase
+            .from('marketplace_orders')
+            .update({ ...updates, updated_at: new Date().toISOString() })
+            .eq('id', id)
+            .select(marketplaceOrderSelect)
+            .single();
+        if (error) return null;
+        return data as MarketplaceOrder;
+    },
+
+    getByCheckoutSession: async (sessionId: string): Promise<MarketplaceOrder | null> => {
+        const supabase = getSupabaseServerClient();
+        const { data, error } = await supabase
+            .from('marketplace_orders')
+            .select(marketplaceOrderSelect)
+            .eq('stripe_checkout_session_id', sessionId)
+            .maybeSingle();
+        if (error) return null;
+        return data as MarketplaceOrder | null;
+    },
+
+    getByBuyer: async (buyerId: string): Promise<MarketplaceOrder[]> => {
+        const supabase = getSupabaseServerClient();
+        const { data, error } = await supabase
+            .from('marketplace_orders')
+            .select(marketplaceOrderSelect)
+            .eq('buyer_id', buyerId)
+            .order('created_at', { ascending: false });
+        if (error) return [];
+        return data as MarketplaceOrder[];
+    },
+
+    getBySeller: async (sellerId: string): Promise<MarketplaceOrder[]> => {
+        const supabase = getSupabaseServerClient();
+        const { data, error } = await supabase
+            .from('marketplace_orders')
+            .select(marketplaceOrderSelect)
+            .eq('seller_id', sellerId)
+            .order('created_at', { ascending: false });
+        if (error) return [];
+        return data as MarketplaceOrder[];
+    },
+
+    listForAdmin: async (): Promise<MarketplaceOrder[]> => {
+        const supabase = getSupabaseServerClient();
+        const { data, error } = await supabase
+            .from('marketplace_orders')
+            .select(marketplaceOrderSelect)
+            .order('created_at', { ascending: false })
+            .limit(200);
+        if (error) return [];
+        return data as MarketplaceOrder[];
+    },
+};
+
 // ============================================================
 // NOTIFICATIONS
 // ============================================================
@@ -1486,7 +1921,7 @@ export const notifications = {
         const supabase = getSupabaseServerClient();
         let query = supabase
             .from('notifications')
-            .select('*')
+            .select(notificationSelect)
             .eq('user_id', userId);
 
         if (unreadOnly) query = query.eq('is_read', false);

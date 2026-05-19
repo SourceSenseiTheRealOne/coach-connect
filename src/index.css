@@ -1,9 +1,10 @@
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700;9..144,800&family=Geist:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Editorial Sport palette — warm ivory, deep ink, coral persimmon accent, deep teal support */
-@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700;9..144,800&family=Geist:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap");
+/* Editorial Sport palette: warm ivory, deep ink, coral persimmon accent, neutral support */
 
 @layer base {
   :root {
@@ -22,8 +23,8 @@
     --primary-foreground: 36 38% 98%;
 
     /* Deep teal — supporting */
-    --secondary: 178 56% 26%;
-    --secondary-foreground: 36 38% 98%;
+    --secondary: 35 18% 90%;
+    --secondary-foreground: 220 32% 10%;
 
     --muted: 35 22% 93%;
     --muted-foreground: 220 12% 38%;
@@ -59,8 +60,8 @@
     );
     --gradient-secondary: linear-gradient(
       135deg,
-      hsl(178 56% 26%),
-      hsl(188 62% 36%)
+      hsl(35 18% 90%),
+      hsl(30 18% 84%)
     );
     --gradient-hero: radial-gradient(
         80% 60% at 20% 0%,
@@ -99,8 +100,8 @@
     --primary: 12 92% 64%;
     --primary-foreground: 220 32% 8%;
 
-    --secondary: 178 60% 50%;
-    --secondary-foreground: 220 32% 8%;
+    --secondary: 220 16% 16%;
+    --secondary-foreground: 36 28% 95%;
 
     --muted: 220 18% 13%;
     --muted-foreground: 220 10% 64%;
@@ -133,8 +134,8 @@
     );
     --gradient-secondary: linear-gradient(
       135deg,
-      hsl(178 60% 50%),
-      hsl(190 70% 60%)
+      hsl(220 16% 16%),
+      hsl(220 18% 22%)
     );
     --gradient-hero: radial-gradient(
         80% 60% at 20% 0%,

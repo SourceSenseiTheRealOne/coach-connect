@@ -37,3 +37,11 @@ memory-bank/
 SKILL.md 
 skills-lock.json
 .agents
+AGENTS.md 
+supabase/.temp
+docs
+*.bak
+.codex-vite-log
+.playwright-mcp
+.vscode
+scripts

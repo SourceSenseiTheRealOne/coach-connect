@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import {
   MapPin,
   Award,
@@ -13,6 +14,7 @@ import {
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Dialog,
   DialogContent,
@@ -24,6 +26,15 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/lib/auth-context";
+import {
   useMyProfile,
   useFollowCounts,
   useUserExerciseCount,
@@ -31,7 +42,12 @@ import {
   useUpdateProfile,
 } from "@/hooks/use-profile";
 
+type LicenseFormValue = "none" | "C" | "B" | "A" | "PRO";
+
 export default function ProfilePage() {
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const { refreshProfile } = useAuth();
   const { data: profile, isLoading, error } = useMyProfile();
   const { data: followCounts } = useFollowCounts(profile?.id || null);
   const { data: exerciseCount } = useUserExerciseCount(profile?.id || null);
@@ -43,7 +59,7 @@ export default function ProfilePage() {
     bio: "",
     city: "",
     district: "",
-    uefa_license: "",
+    uefa_license: "none" as LicenseFormValue,
   });
 
   const handleEditClick = () => {
@@ -53,26 +69,34 @@ export default function ProfilePage() {
         bio: profile.bio || "",
         city: profile.city || "",
         district: profile.district || "",
-        uefa_license: profile.uefa_license || "",
+        uefa_license: (profile.uefa_license || "none") as LicenseFormValue,
       });
       setIsEditDialogOpen(true);
     }
+  };
+
+  const nullableText = (value: string) => {
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
   };
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       await updateProfile.mutateAsync({
-        full_name: editForm.full_name || undefined,
-        bio: editForm.bio || undefined,
-        city: editForm.city || undefined,
-        district: editForm.district || undefined,
+        full_name: editForm.full_name.trim() || undefined,
+        bio: nullableText(editForm.bio),
+        city: nullableText(editForm.city),
+        district: nullableText(editForm.district),
         uefa_license:
-          (editForm.uefa_license as "C" | "B" | "A" | "PRO" | null) || null,
+          editForm.uefa_license === "none" ? null : editForm.uefa_license,
       });
+      await refreshProfile();
       setIsEditDialogOpen(false);
+      toast({ title: "Profile updated" });
     } catch (error) {
       console.error("Failed to update profile:", error);
+      toast({ title: "Failed to update profile", variant: "destructive" });
     }
   };
 
@@ -124,16 +148,30 @@ export default function ProfilePage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
       >
-        <div className="h-40 sm:h-52 bg-gradient-to-br from-primary/20 via-accent/10 to-background relative">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,hsl(var(--secondary)/0.15),transparent)]" />
+        <div className="h-40 sm:h-52 bg-gradient-to-br from-primary/20 via-accent/10 to-background relative overflow-hidden">
+          {profile.cover_image_url ? (
+            <img
+              src={profile.cover_image_url}
+              alt=""
+              className="absolute inset-0 h-full w-full object-cover"
+            />
+          ) : null}
+          <div className="absolute inset-0 bg-gradient-to-t from-background/70 via-background/10 to-transparent" />
         </div>
         <div className="px-6 pb-6 -mt-12 relative">
           <div className="flex flex-col sm:flex-row sm:items-end gap-4">
-            <div className="w-24 h-24 rounded-2xl bg-card border-4 border-background flex items-center justify-center">
-              <span className="font-display text-2xl font-bold text-primary">
-                {initials}
-              </span>
-            </div>
+            <Avatar className="w-24 h-24 rounded-2xl bg-card border-4 border-background">
+              <AvatarImage
+                src={profile.avatar_url || undefined}
+                alt={profile.full_name || profile.username || "User"}
+                className="object-cover"
+              />
+              <AvatarFallback className="rounded-xl bg-card">
+                <span className="font-display text-2xl font-bold text-primary">
+                  {initials}
+                </span>
+              </AvatarFallback>
+            </Avatar>
             <div className="flex-1">
               <div className="flex items-center gap-2">
                 <h1 className="font-display text-xl font-bold text-foreground">
@@ -141,7 +179,7 @@ export default function ProfilePage() {
                 </h1>
               </div>
               <p className="text-sm text-muted-foreground">
-                {profile.user_type || "Coach"} ·{" "}
+                {profile.user_type || "Coach"} -{" "}
                 {profile.uefa_license || "No license"}
               </p>
             </div>
@@ -221,7 +259,11 @@ export default function ProfilePage() {
             <h2 className="font-display font-semibold text-foreground">
               Recent Exercises
             </h2>
-            <button className="text-sm text-primary hover:underline flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => navigate("/dashboard/exercises")}
+              className="text-sm text-primary hover:underline flex items-center gap-1"
+            >
               View All <ExternalLink size={12} />
             </button>
           </div>
@@ -240,7 +282,7 @@ export default function ProfilePage() {
                       {exercise.title}
                     </h3>
                     <p className="text-xs text-muted-foreground truncate">
-                      {exercise.category} · {exercise.difficulty}
+                      {exercise.category} - {exercise.difficulty}
                     </p>
                   </div>
                   <div className="text-xs text-muted-foreground">
@@ -306,14 +348,26 @@ export default function ProfilePage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="uefa_license">UEFA License</Label>
-              <Input
-                id="uefa_license"
+              <Select
                 value={editForm.uefa_license}
-                onChange={(e) =>
-                  handleFormChange("uefa_license", e.target.value)
+                onValueChange={(value: LicenseFormValue) =>
+                  handleFormChange("uefa_license", value)
                 }
-                placeholder="C, B, A, or PRO"
-              />
+              >
+                <SelectTrigger
+                  id="uefa_license"
+                  className="bg-muted/40 border-border text-foreground"
+                >
+                  <SelectValue placeholder="Select license" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No license</SelectItem>
+                  <SelectItem value="C">C</SelectItem>
+                  <SelectItem value="B">B</SelectItem>
+                  <SelectItem value="A">A</SelectItem>
+                  <SelectItem value="PRO">PRO</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="flex justify-end gap-2">
               <Button

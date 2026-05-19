@@ -50,6 +50,19 @@ export function useCreateJob() {
 }
 
 /**
+ * Hook to start a conversation with a job creator
+ */
+export function useContactJobCreator() {
+    const utils = trpc.useUtils();
+
+    return trpc.jobs.contactCreator.useMutation({
+        onSuccess: () => {
+            utils.messaging.getConversations.invalidate();
+        },
+    });
+}
+
+/**
  * Hook to update a job listing
  */
 export function useUpdateJob() {

@@ -47,7 +47,7 @@ const postTypeConfig: Record<string, { label: string; color: string }> = {
   },
   drill_share: {
     label: "Drill Share",
-    color: "bg-secondary/15 text-secondary border border-secondary/25",
+    color: "bg-muted/70 text-muted-foreground border border-border",
   },
   match_report: {
     label: "Match Report",

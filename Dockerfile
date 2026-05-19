@@ -27,12 +27,11 @@ WORKDIR /app
 # Copy built frontend assets
 COPY --from=builder /app/dist ./dist
 
-# Copy package files for production deps
+# Copy package files
 COPY package*.json ./
-RUN npm ci --only=production && npm cache clean --force
 
-# Install tsx for running TypeScript server
-RUN npm install tsx
+# Install only production deps (includes serve + tsx already declared)
+RUN npm ci --omit=dev && npm cache clean --force
 
 # Copy server files and source code needed by the server
 COPY server ./server
@@ -40,29 +39,22 @@ COPY src/server ./src/server
 COPY src/lib ./src/lib
 COPY src/shared ./src/shared
 
-# Create startup script directly in Dockerfile
-RUN echo '#!/bin/sh' > /app/start.sh && \
-    echo '' >> /app/start.sh && \
-    echo '# Start API server in background' >> /app/start.sh && \
-    echo 'echo "Starting API server on port 3001..."' >> /app/start.sh && \
-    echo 'node --import tsx server/index.ts &' >> /app/start.sh && \
-    echo 'API_PID=$!' >> /app/start.sh && \
-    echo '' >> /app/start.sh && \
-    echo '# Wait for API to be ready' >> /app/start.sh && \
-    echo 'sleep 3' >> /app/start.sh && \
-    echo '' >> /app/start.sh && \
-    echo '# Install and start frontend static server' >> /app/start.sh && \
-    echo 'echo "Starting frontend server on port 8080..."' >> /app/start.sh && \
-    echo 'npm install -g serve' >> /app/start.sh && \
-    echo 'serve -s dist -l 8080 &' >> /app/start.sh && \
-    echo 'FRONTEND_PID=$!' >> /app/start.sh && \
-    echo '' >> /app/start.sh && \
-    echo '# Handle shutdown gracefully' >> /app/start.sh && \
-    echo 'trap "kill $API_PID $FRONTEND_PID; exit" SIGINT SIGTERM' >> /app/start.sh && \
-    echo '' >> /app/start.sh && \
-    echo '# Keep container running' >> /app/start.sh && \
-    echo 'wait' >> /app/start.sh && \
-    chmod +x /app/start.sh
+# Startup script: API + static frontend, graceful shutdown
+RUN printf '%s\n' \
+    '#!/bin/sh' \
+    'set -e' \
+    'echo "Starting API server on port 3001..."' \
+    'node --import tsx server/index.ts &' \
+    'API_PID=$!' \
+    'echo "Starting frontend static server on port 8080..."' \
+    'npx serve -s dist -l 8080 &' \
+    'FRONTEND_PID=$!' \
+    'trap "kill $API_PID $FRONTEND_PID 2>/dev/null; wait" SIGINT SIGTERM' \
+    'wait -n $API_PID $FRONTEND_PID' \
+    'EXIT_CODE=$?' \
+    'kill $API_PID $FRONTEND_PID 2>/dev/null || true' \
+    'exit $EXIT_CODE' \
+    > /app/start.sh && chmod +x /app/start.sh
 
 # Expose both ports
 EXPOSE 8080 3001

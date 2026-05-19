@@ -6,11 +6,17 @@
 import Stripe from 'stripe';
 import { getSupabaseServerClient } from '../../lib/supabase-server';
 import { stripeService } from '../services/stripe';
+import { marketplaceOrders } from '../db';
 
 export async function handleStripeWebhook(event: Stripe.Event): Promise<void> {
     switch (event.type) {
         case 'checkout.session.completed': {
             await handleCheckoutSessionCompleted(event.data.object as Stripe.Checkout.Session);
+            break;
+        }
+
+        case 'checkout.session.expired': {
+            await handleCheckoutSessionExpired(event.data.object as Stripe.Checkout.Session);
             break;
         }
 
@@ -40,6 +46,11 @@ export async function handleStripeWebhook(event: Stripe.Event): Promise<void> {
 }
 
 async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session): Promise<void> {
+    if (session.metadata?.type === 'marketplace_order') {
+        await handleMarketplaceCheckoutSessionCompleted(session);
+        return;
+    }
+
     const supabase = getSupabaseServerClient();
     const userId = session.metadata?.userId;
     const priceId = session.metadata?.priceId;
@@ -59,20 +70,105 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session):
             return;
         }
 
-        await supabase.from('subscriptions').insert({
-            user_id: userId,
-            stripe_customer_id: session.customer as string,
-            stripe_subscription_id: subscription.id,
-            stripe_price_id: priceId,
-            status: 'active',
-            subscription_tier: tier,
-            current_period_start: new Date(subscriptionItem.current_period_start * 1000).toISOString(),
-            current_period_end: new Date(subscriptionItem.current_period_end * 1000).toISOString(),
-        });
+        const subscriptionPayload = {
+            p_user_id: userId,
+            p_stripe_customer_id: session.customer as string,
+            p_stripe_subscription_id: subscription.id,
+            p_stripe_price_id: priceId,
+            p_status: subscription.status,
+            p_subscription_tier: tier,
+            p_current_period_start: new Date(subscriptionItem.current_period_start * 1000).toISOString(),
+            p_current_period_end: new Date(subscriptionItem.current_period_end * 1000).toISOString(),
+            p_cancel_at_period_end: subscription.cancel_at_period_end,
+        };
+
+        const { error: rpcError } = await supabase.rpc(
+            'record_stripe_subscription',
+            subscriptionPayload,
+        );
+
+        if (rpcError) {
+            // Fallback keeps older databases usable, while still surfacing insert
+            // failures that used to be silently ignored.
+            if (rpcError.code !== 'PGRST202') {
+                throw rpcError;
+            }
+
+            const { error: insertError } = await supabase.from('subscriptions').insert({
+                user_id: userId,
+                stripe_customer_id: session.customer as string,
+                stripe_subscription_id: subscription.id,
+                stripe_price_id: priceId,
+                status: subscription.status,
+                subscription_tier: tier,
+                current_period_start: subscriptionPayload.p_current_period_start,
+                current_period_end: subscriptionPayload.p_current_period_end,
+                cancel_at_period_end: subscription.cancel_at_period_end,
+            });
+
+            if (insertError) {
+                throw insertError;
+            }
+        }
 
         console.log(`Subscription created for user ${userId}`);
     } catch (error) {
         console.error('Error handling checkout.session.completed:', error);
+        throw error;
+    }
+}
+
+async function handleMarketplaceCheckoutSessionCompleted(session: Stripe.Checkout.Session): Promise<void> {
+    const orderId = session.metadata?.orderId;
+    if (!orderId) {
+        console.error('Missing marketplace order metadata in checkout session');
+        return;
+    }
+
+    try {
+        const paidAt = new Date();
+        const payoutDueAt = new Date(paidAt);
+        payoutDueAt.setDate(payoutDueAt.getDate() + 7);
+
+        const order = await marketplaceOrders.update(orderId, {
+            status: 'paid',
+            stripe_checkout_session_id: session.id,
+            stripe_payment_intent_id: typeof session.payment_intent === 'string'
+                ? session.payment_intent
+                : session.payment_intent?.id ?? null,
+            paid_at: paidAt.toISOString(),
+            payout_status: 'processing',
+            payout_due_at: payoutDueAt.toISOString(),
+        });
+
+        if (!order) {
+            console.error(`Marketplace order ${orderId} not found`);
+            return;
+        }
+
+        console.log(`Marketplace order ${orderId} paid; payout due by ${payoutDueAt.toISOString()}`);
+    } catch (error) {
+        console.error('Error handling marketplace checkout.session.completed:', error);
+        throw error;
+    }
+}
+
+async function handleCheckoutSessionExpired(session: Stripe.Checkout.Session): Promise<void> {
+    if (session.metadata?.type !== 'marketplace_order') {
+        return;
+    }
+
+    const orderId = session.metadata?.orderId;
+    if (!orderId) return;
+
+    try {
+        await marketplaceOrders.update(orderId, {
+            status: 'canceled',
+            stripe_checkout_session_id: session.id,
+        });
+        console.log(`Marketplace order ${orderId} canceled after checkout expiration`);
+    } catch (error) {
+        console.error('Error handling checkout.session.expired:', error);
         throw error;
     }
 }

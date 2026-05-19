@@ -95,7 +95,7 @@ export type PlanType = (typeof planTypes)[number]["value"];
 function getSessionColor(index: number): string {
   const colors = [
     "bg-primary/15 border-primary/30 text-primary",
-    "bg-secondary/15 border-secondary/30 text-secondary",
+    "bg-muted/70 border-border text-muted-foreground",
     "bg-amber-500/15 border-amber-500/30 text-amber-600 dark:text-amber-300",
     "bg-rose-500/15 border-rose-500/30 text-rose-600 dark:text-rose-300",
     "bg-purple-500/15 border-purple-500/30 text-purple-600 dark:text-purple-300",

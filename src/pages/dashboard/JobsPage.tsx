@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   Search,
@@ -8,6 +9,8 @@ import {
   Briefcase,
   Filter,
   Loader2,
+  Lock,
+  MessageCircle,
   Plus,
   X,
 } from "lucide-react";
@@ -28,13 +31,27 @@ import {
   useCreateJob,
   useJob,
   useApplyForJob,
+  useContactJobCreator,
   useMyApplication,
 } from "@/hooks/use-jobs";
+import { useMySubscription } from "@/hooks/use-subscription";
+import { useAuth } from "@/lib/auth-context";
+import type { SubscriptionTier } from "@/shared/types";
+
+const paidTiers: SubscriptionTier[] = [
+  "premium_coach",
+  "pro_service",
+  "club_license",
+];
 
 export default function JobsPage() {
+  const navigate = useNavigate();
+  const { user, profile } = useAuth();
+  const { data: subscription } = useMySubscription();
   const { data: jobsData, isLoading, error } = useJobs();
   const createJob = useCreateJob();
   const applyForJob = useApplyForJob();
+  const contactJobCreator = useContactJobCreator();
   const [searchQuery, setSearchQuery] = useState("");
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
@@ -76,9 +93,14 @@ export default function JobsPage() {
 
   const { data: selectedJob } = useJob(selectedJobId);
   const { data: myApplication } = useMyApplication(selectedJobId);
+  const activeTier = (subscription?.subscription_tier ||
+    profile?.subscription_tier ||
+    "free") as SubscriptionTier;
+  const canCreateJobs = paidTiers.includes(activeTier);
 
   const handleCreateJob = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canCreateJobs) return;
     try {
       await createJob.mutateAsync({
         title: createJobForm.title,
@@ -125,7 +147,20 @@ export default function JobsPage() {
     }
   };
 
+  const handleContactCreator = async () => {
+    if (!selectedJobId) return;
+    try {
+      await contactJobCreator.mutateAsync(selectedJobId);
+      navigate("/dashboard/messages");
+    } catch (error) {
+      console.error("Failed to contact job creator:", error);
+    }
+  };
+
   const hasApplied = !!myApplication;
+  const isSelectedJobOwner = selectedJob?.created_by_id === user?.id;
+  const canContactSelectedJob =
+    !!selectedJob?.created_by_id && !isSelectedJobOwner;
 
   if (isLoading) {
     return (
@@ -161,13 +196,21 @@ export default function JobsPage() {
           Job Board
         </h1>
         <div className="flex gap-2">
-          <Button
-            size="sm"
-            className="bg-primary text-primary-foreground hover:bg-primary/90 gap-2"
-            onClick={() => setIsCreateModalOpen(true)}
-          >
-            <Plus size={16} /> Create Job
-          </Button>
+          {canCreateJobs ? (
+            <Button
+              size="sm"
+              className="bg-primary text-primary-foreground hover:bg-primary/90 gap-2"
+              onClick={() => setIsCreateModalOpen(true)}
+            >
+              <Plus size={16} /> Create Job
+            </Button>
+          ) : (
+            <Button asChild size="sm" variant="outline" className="gap-2">
+              <Link to="/pricing">
+                <Lock size={16} /> Upgrade to post jobs
+              </Link>
+            </Button>
+          )}
           <div className="relative flex-1 sm:w-64">
             <Search
               size={16}
@@ -472,7 +515,7 @@ export default function JobsPage() {
                     Paid
                   </Badge>
                 ) : (
-                  <Badge className="bg-secondary/15 text-secondary border-secondary/25">
+                  <Badge className="bg-muted/70 text-muted-foreground border-border">
                     Volunteer
                   </Badge>
                 )}
@@ -514,7 +557,21 @@ export default function JobsPage() {
                 >
                   Close
                 </Button>
-                {hasApplied ? (
+                {canContactSelectedJob && (
+                  <Button
+                    variant="secondary"
+                    onClick={handleContactCreator}
+                    disabled={contactJobCreator.isPending}
+                  >
+                    {contactJobCreator.isPending ? (
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    ) : (
+                      <MessageCircle size={16} />
+                    )}
+                    Contact poster
+                  </Button>
+                )}
+                {isSelectedJobOwner ? null : hasApplied ? (
                   <Button
                     disabled
                     className="bg-primary text-primary-foreground"

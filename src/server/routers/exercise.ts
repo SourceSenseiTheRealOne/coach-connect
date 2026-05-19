@@ -13,11 +13,12 @@ export const exerciseRouter = router({
     // List exercises with filters
     list: publicProcedure
         .input(listExercisesSchema)
-        .query(async ({ input }) => {
+        .query(async ({ ctx, input }) => {
             return exercises.list({
                 ...input,
                 page: input.page ?? 1,
                 pageSize: input.pageSize ?? 20,
+                userId: ctx.user?.id,
             });
         }),
 

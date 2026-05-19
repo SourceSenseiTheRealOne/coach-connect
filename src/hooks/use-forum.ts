@@ -62,6 +62,18 @@ export function useThreadReplies(threadId: string | null) {
 }
 
 /**
+ * Hook to create a new forum category (paid tiers only).
+ */
+export function useCreateForumCategory() {
+    const utils = trpc.useUtils();
+    return trpc.forum.createCategory.useMutation({
+        onSuccess: () => {
+            utils.forum.getCategories.invalidate();
+        },
+    });
+}
+
+/**
  * Hook to create a new thread
  */
 export function useCreateThread() {

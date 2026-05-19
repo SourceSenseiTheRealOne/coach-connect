@@ -1,4 +1,3 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { trpc } from "@/lib/trpc";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
@@ -162,16 +161,6 @@ export function createDefaultBoardData(formation: string = "4-3-3"): BoardData {
 }
 
 // ============================================================
-// QUERY KEYS
-// ============================================================
-
-const tacticBoardKeys = {
-    all: ["tacticBoards"] as const,
-    lists: () => [...tacticBoardKeys.all, "list"] as const,
-    detail: (id: string) => [...tacticBoardKeys.all, "detail", id] as const,
-};
-
-// ============================================================
 // HOOKS
 // ============================================================
 
@@ -200,11 +189,11 @@ export function useTacticBoard(id: string | null) {
  * Hook to create a new tactic board
  */
 export function useCreateTacticBoard() {
-    const queryClient = useQueryClient();
+    const utils = trpc.useUtils();
 
     return trpc.tacticBoard.create.useMutation({
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: tacticBoardKeys.all });
+            utils.tacticBoard.list.invalidate();
         },
     });
 }
@@ -213,12 +202,12 @@ export function useCreateTacticBoard() {
  * Hook to update a tactic board
  */
 export function useUpdateTacticBoard() {
-    const queryClient = useQueryClient();
+    const utils = trpc.useUtils();
 
     return trpc.tacticBoard.update.useMutation({
         onSuccess: (data) => {
-            queryClient.invalidateQueries({ queryKey: tacticBoardKeys.all });
-            queryClient.invalidateQueries({ queryKey: tacticBoardKeys.detail(data.id) });
+            utils.tacticBoard.list.invalidate();
+            utils.tacticBoard.getById.invalidate(data.id);
         },
     });
 }
@@ -227,11 +216,11 @@ export function useUpdateTacticBoard() {
  * Hook to delete a tactic board
  */
 export function useDeleteTacticBoard() {
-    const queryClient = useQueryClient();
+    const utils = trpc.useUtils();
 
     return trpc.tacticBoard.delete.useMutation({
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: tacticBoardKeys.all });
+            utils.tacticBoard.list.invalidate();
         },
     });
 }
@@ -240,11 +229,11 @@ export function useDeleteTacticBoard() {
  * Hook to duplicate a tactic board
  */
 export function useDuplicateTacticBoard() {
-    const queryClient = useQueryClient();
+    const utils = trpc.useUtils();
 
     return trpc.tacticBoard.duplicate.useMutation({
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: tacticBoardKeys.all });
+            utils.tacticBoard.list.invalidate();
         },
     });
 }
@@ -294,7 +283,7 @@ export function useAutoSave(boardId: string | null) {
 // ============================================================
 
 export function useTacticBoardRealtime() {
-    const queryClient = useQueryClient();
+    const utils = trpc.useUtils();
 
     const setupSubscription = useCallback(() => {
         const channel = supabase
@@ -303,21 +292,21 @@ export function useTacticBoardRealtime() {
                 "postgres_changes",
                 { event: "INSERT", schema: "public", table: "tactic_boards" },
                 () => {
-                    queryClient.invalidateQueries({ queryKey: tacticBoardKeys.all });
+                    utils.tacticBoard.list.invalidate();
                 }
             )
             .on(
                 "postgres_changes",
                 { event: "UPDATE", schema: "public", table: "tactic_boards" },
                 () => {
-                    queryClient.invalidateQueries({ queryKey: tacticBoardKeys.all });
+                    utils.tacticBoard.list.invalidate();
                 }
             )
             .on(
                 "postgres_changes",
                 { event: "DELETE", schema: "public", table: "tactic_boards" },
                 () => {
-                    queryClient.invalidateQueries({ queryKey: tacticBoardKeys.all });
+                    utils.tacticBoard.list.invalidate();
                 }
             )
             .subscribe();
@@ -325,7 +314,7 @@ export function useTacticBoardRealtime() {
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [queryClient]);
+    }, [utils]);
 
     return setupSubscription;
 }

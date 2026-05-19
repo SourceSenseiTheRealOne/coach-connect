@@ -22,4 +22,35 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    chunkSizeWarningLimit: 800,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          "react-vendor": ["react", "react-dom", "react-router-dom"],
+          "three-vendor": ["three", "@react-three/fiber", "@react-three/drei"],
+          "motion-vendor": ["framer-motion"],
+          "radix-vendor": [
+            "@radix-ui/react-accordion",
+            "@radix-ui/react-alert-dialog",
+            "@radix-ui/react-dialog",
+            "@radix-ui/react-dropdown-menu",
+            "@radix-ui/react-popover",
+            "@radix-ui/react-select",
+            "@radix-ui/react-tabs",
+            "@radix-ui/react-toast",
+            "@radix-ui/react-tooltip",
+          ],
+          "supabase-vendor": ["@supabase/supabase-js"],
+          "trpc-vendor": [
+            "@trpc/client",
+            "@trpc/react-query",
+            "@trpc/server",
+            "@tanstack/react-query",
+            "superjson",
+          ],
+        },
+      },
+    },
+  },
 }));

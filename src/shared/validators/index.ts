@@ -46,6 +46,7 @@ export const oauthSchema = z.object({
 export const userTypeSchema = z.enum(['coach', 'club', 'scout', 'trainer', 'admin']);
 export const uefaLicenseSchema = z.enum(['C', 'B', 'A', 'PRO']);
 export const subscriptionTierSchema = z.enum(['free', 'premium_coach', 'pro_service', 'club_license']);
+export const appLanguageSchema = z.enum(['en', 'fr', 'es', 'pt', 'de']);
 
 export const updateProfileSchema = z.object({
     username: z.string().min(3).max(30).regex(/^[a-zA-Z0-9_]+$/).optional(),
@@ -72,6 +73,23 @@ export const updateClubProfileSchema = createClubProfileSchema.partial();
 export const addClubMemberSchema = z.object({
     user_id: uuidSchema,
     role: z.enum(['admin', 'coach', 'staff']),
+});
+
+// ============================================================
+// USER SETTINGS SCHEMAS
+// ============================================================
+
+export const updateUserSettingsSchema = z.object({
+    new_messages: z.boolean().optional(),
+    exercise_likes: z.boolean().optional(),
+    new_followers: z.boolean().optional(),
+    job_opportunities: z.boolean().optional(),
+    platform_updates: z.boolean().optional(),
+    language: appLanguageSchema.optional(),
+});
+
+export const deleteAccountSchema = z.object({
+    confirmation: z.literal('DELETE'),
 });
 
 // ============================================================
@@ -241,6 +259,11 @@ export const markAsReadSchema = z.object({
     conversation_id: uuidSchema,
 });
 
+export const searchMessagingUsersSchema = z.object({
+    query: z.string().min(1).max(100),
+    limit: z.number().int().min(1).max(50).optional(),
+});
+
 // ============================================================
 // JOB SCHEMAS
 // ============================================================
@@ -287,6 +310,13 @@ export const updateApplicationStatusSchema = z.object({
 // ============================================================
 // FORUM SCHEMAS
 // ============================================================
+
+export const createForumCategorySchema = z.object({
+    name: z.string().min(2).max(80),
+    slug: z.string().min(2).max(80).regex(/^[a-z0-9-]+$/, 'Use lowercase letters, numbers, and hyphens'),
+    description: z.string().max(500).nullable().optional(),
+    sort_order: z.number().int().min(0).max(1000).optional(),
+});
 
 export const createForumThreadSchema = z.object({
     category_id: uuidSchema,
@@ -383,6 +413,8 @@ export const serviceTypeSchema = z.enum([
 ]);
 
 export const priceTypeSchema = z.enum(['fixed', 'hourly', 'per_session', 'contact']);
+export const sellerPayoutMethodSchema = z.enum(['iban', 'bank_transfer']);
+export const marketplacePayoutStatusSchema = z.enum(['pending', 'processing', 'paid', 'failed']);
 
 export const listMarketplaceSchema = paginationSchema.extend({
     service_type: serviceTypeSchema.optional(),
@@ -409,6 +441,25 @@ export const createMarketplaceReviewSchema = z.object({
     listing_id: uuidSchema,
     rating: z.number().int().min(1).max(5),
     comment: z.string().max(2000).nullable(),
+});
+
+export const upsertSellerPayoutProfileSchema = z.object({
+    account_holder_name: z.string().min(2).max(200),
+    payout_method: sellerPayoutMethodSchema.default('iban'),
+    country: z.string().min(2).max(2).default('PT'),
+    currency: z.string().length(3).default('EUR'),
+    bank_reference: z.string().min(8).max(64),
+});
+
+export const createMarketplaceCheckoutSchema = z.object({
+    listing_id: uuidSchema,
+});
+
+export const adminUpdateMarketplacePayoutSchema = z.object({
+    order_id: uuidSchema,
+    payout_status: marketplacePayoutStatusSchema,
+    payout_reference: z.string().max(500).nullable().optional(),
+    admin_note: z.string().max(2000).nullable().optional(),
 });
 
 // ============================================================

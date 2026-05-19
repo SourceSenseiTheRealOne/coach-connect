@@ -73,6 +73,34 @@ export function useConversations() {
 }
 
 /**
+ * Hook to search users (by username, full_name, or email) to start a new conversation.
+ * Pass an empty string to disable.
+ */
+export function useSearchMessagingUsers(query: string) {
+    const trimmed = query.trim();
+    return trpc.messaging.searchUsers.useQuery(
+        { query: trimmed, limit: 15 },
+        {
+            enabled: trimmed.length >= 2,
+            staleTime: 30 * 1000,
+        },
+    );
+}
+
+/**
+ * Hook to fetch the current user's total unread message count
+ * (sum across all conversations they participate in).
+ */
+export function useUnreadMessageCount(enabled = true) {
+    return trpc.messaging.unreadCount.useQuery(undefined, {
+        enabled,
+        staleTime: 10 * 1000,
+        refetchInterval: 20 * 1000,
+        refetchOnWindowFocus: true,
+    });
+}
+
+/**
  * Hook to fetch messages for a specific conversation
  */
 export function useMessages(conversationId: string | null) {
@@ -103,6 +131,9 @@ export function useSendMessage() {
             });
             // Invalidate conversations list to update last message
             await utils.messaging.getConversations.invalidate();
+            // Sender's own message shouldn't count as unread, but we still refresh in case
+            // we received a message from another participant in parallel.
+            await utils.messaging.unreadCount.invalidate();
         },
     });
 }
@@ -121,10 +152,29 @@ export function useCreateConversation() {
 }
 
 /**
+ * Hook to create or reuse a direct conversation with another user.
+ */
+export function useGetOrCreateDirectConversation() {
+    const utils = trpc.useUtils();
+
+    return trpc.messaging.getOrCreateDirectConversation.useMutation({
+        onSuccess: () => {
+            utils.messaging.getConversations.invalidate();
+        },
+    });
+}
+
+/**
  * Hook to mark a conversation as read
  */
 export function useMarkAsRead() {
-    return trpc.messaging.markAsRead.useMutation();
+    const utils = trpc.useUtils();
+    return trpc.messaging.markAsRead.useMutation({
+        onSuccess: async () => {
+            await utils.messaging.unreadCount.invalidate();
+            await utils.messaging.getConversations.invalidate();
+        },
+    });
 }
 
 /**
@@ -159,6 +209,7 @@ export function useMessagingRealtime(conversationId: string | null) {
                             });
                         }
                         utils.messaging.getConversations.invalidate();
+                        utils.messaging.unreadCount.invalidate();
                     },
                 )
                 .subscribe();

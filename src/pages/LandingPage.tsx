@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { lazy, Suspense } from "react";
 import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import {
@@ -13,6 +14,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { WelcomeModal } from "@/components/WelcomeModal";
 import heroBg from "@/assets/hero-bg.jpg";
+
+const HeroScene = lazy(() =>
+  import("@/components/three/HeroScene").then((m) => ({ default: m.HeroScene })),
+);
 
 export default function LandingPage() {
   const { t } = useTranslation();
@@ -125,7 +130,7 @@ export default function LandingPage() {
                   <Button
                     size="lg"
                     variant="outline"
-                    className="border-border text-foreground hover:bg-secondary hover:border-secondary text-base px-10 transition-all duration-300"
+                    className="border-border text-foreground hover:bg-muted/70 hover:border-border text-base px-10 transition-all duration-300"
                   >
                     {t("landing.exploreFeatures")}
                   </Button>
@@ -134,55 +139,67 @@ export default function LandingPage() {
             </div>
 
             <motion.div
-              className="relative hidden lg:block"
+              className="relative hidden lg:block h-[560px]"
               initial={{ opacity: 0, x: 50 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 1, delay: 0.4, ease: "easeOut" }}
             >
-              <div className="glass-card p-8 relative">
-                <div className="absolute -top-4 -right-4 w-24 h-24 bg-gradient-to-br from-primary/20 to-secondary/20 rounded-full blur-3xl" />
-                <div className="absolute -bottom-4 -left-4 w-32 h-32 bg-gradient-to-br from-secondary/20 to-primary/20 rounded-full blur-3xl" />
-                <div className="relative z-10 space-y-6">
-                  <div className="flex items-center gap-4 p-4 bg-card/50 rounded-xl border border-border">
-                    <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <BookOpen className="text-primary" size={24} />
-                    </div>
-                    <div>
-                      <div className="font-semibold text-foreground">
-                        Drill Library
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        12,000+ exercises
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4 p-4 bg-card/50 rounded-xl border border-border">
-                    <div className="w-12 h-12 rounded-lg bg-secondary/10 flex items-center justify-center">
-                      <Target className="text-secondary" size={24} />
-                    </div>
-                    <div>
-                      <div className="font-semibold text-foreground">
-                        Tactic Board
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        Visual planning
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4 p-4 bg-card/50 rounded-xl border border-border">
-                    <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <Users className="text-primary" size={24} />
-                    </div>
-                    <div>
-                      <div className="font-semibold text-foreground">
-                        Network
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        5,000+ coaches
-                      </div>
-                    </div>
+              {/* Soft glow halos behind the 3D scene */}
+              <div className="absolute top-10 right-10 w-72 h-72 bg-primary/25 rounded-full blur-[120px] pointer-events-none" />
+              <div className="absolute bottom-10 left-10 w-80 h-80 bg-teal-500/15 rounded-full blur-[140px] pointer-events-none" />
+
+              {/* Floating stat badges */}
+              <motion.div
+                className="absolute top-4 left-0 z-20 glass-card px-4 py-3 flex items-center gap-3"
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 1.2 }}
+              >
+                <div className="w-9 h-9 rounded-lg bg-primary/15 flex items-center justify-center">
+                  <BookOpen className="text-primary" size={18} />
+                </div>
+                <div>
+                  <div className="text-xs text-muted-foreground">Drills</div>
+                  <div className="font-display font-bold text-foreground text-sm">
+                    12,000+
                   </div>
                 </div>
+              </motion.div>
+
+              <motion.div
+                className="absolute bottom-12 right-0 z-20 glass-card px-4 py-3 flex items-center gap-3"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 1.4 }}
+              >
+                <div className="w-9 h-9 rounded-lg bg-primary/15 flex items-center justify-center">
+                  <Users className="text-primary" size={18} />
+                </div>
+                <div>
+                  <div className="text-xs text-muted-foreground">Coaches</div>
+                  <div className="font-display font-bold text-foreground text-sm">
+                    5,000+
+                  </div>
+                </div>
+              </motion.div>
+
+              <motion.div
+                className="absolute top-1/2 -translate-y-1/2 right-2 z-20 glass-card px-3 py-2 flex items-center gap-2"
+                initial={{ opacity: 0, x: 10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 1.6 }}
+              >
+                <span className="glow-dot" />
+                <span className="mono text-[10px] uppercase tracking-wider text-foreground">
+                  Live · {new Date().getFullYear()}
+                </span>
+              </motion.div>
+
+              {/* 3D football scene */}
+              <div className="absolute inset-0">
+                <Suspense fallback={null}>
+                  <HeroScene />
+                </Suspense>
               </div>
             </motion.div>
           </div>
@@ -270,7 +287,7 @@ export default function LandingPage() {
             viewport={{ once: true, margin: "-100px" }}
             transition={{ duration: 0.8, ease: "easeOut" }}
           >
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/15 via-transparent to-secondary/15" />
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/15 via-transparent to-muted/70" />
             <div className="absolute inset-0 noise-overlay" />
             <div className="relative z-10">
               <h2 className="font-display text-4xl sm:text-5xl font-bold mb-6 text-foreground tracking-tight">

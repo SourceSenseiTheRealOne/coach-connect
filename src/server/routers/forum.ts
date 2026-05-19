@@ -1,19 +1,47 @@
-import { router, publicProcedure, protectedProcedure } from '../trpc';
+import { router, publicProcedure, protectedProcedure, createTierProtectedProcedure } from '../trpc';
 import { TRPCError } from '@trpc/server';
 import { forum } from '../db';
 import {
     uuidSchema,
     listThreadsSchema,
+    createForumCategorySchema,
     createForumThreadSchema,
     createForumReplySchema,
     moderateThreadSchema,
 } from '../../shared/validators';
+
+// Only paid tiers can create categories or new threads.
+// Free users can still view threads and post replies.
+const paidTierForumProcedure = createTierProtectedProcedure([
+    'premium_coach',
+    'pro_service',
+    'club_license',
+]);
 
 export const forumRouter = router({
     // Categories
     getCategories: publicProcedure
         .query(async () => {
             return forum.getCategories();
+        }),
+
+    createCategory: paidTierForumProcedure
+        .input(createForumCategorySchema)
+        .mutation(async ({ input }) => {
+            const existing = await forum.getCategories();
+            if (existing.some((c) => c.slug === input.slug)) {
+                throw new TRPCError({ code: 'CONFLICT', message: 'A category with this slug already exists' });
+            }
+            const category = await forum.createCategory({
+                name: input.name,
+                slug: input.slug,
+                description: input.description ?? null,
+                sort_order: input.sort_order ?? existing.length,
+            });
+            if (!category) {
+                throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to create category' });
+            }
+            return category;
         }),
 
     // Threads
@@ -37,7 +65,7 @@ export const forumRouter = router({
             return thread;
         }),
 
-    createThread: protectedProcedure
+    createThread: paidTierForumProcedure
         .input(createForumThreadSchema)
         .mutation(async ({ ctx, input }) => {
             const thread = await forum.createThread({

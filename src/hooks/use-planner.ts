@@ -1,4 +1,3 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { trpc } from "@/lib/trpc";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
@@ -12,18 +11,6 @@ import { useCallback } from "react";
 export interface SessionWithExercises extends TrainingSession {
     exercises: (Exercise & { session_exercise_id: string; duration_minutes: number | null; notes: string | null })[];
 }
-
-// ============================================================
-// QUERY KEYS
-// ============================================================
-
-const plannerKeys = {
-    all: ["planner"] as const,
-    plans: () => [...plannerKeys.all, "plans"] as const,
-    plan: (id: string) => [...plannerKeys.all, "plan", id] as const,
-    sessions: (planId: string) => [...plannerKeys.all, "sessions", planId] as const,
-    sessionExercises: (sessionId: string) => [...plannerKeys.all, "session-exercises", sessionId] as const,
-};
 
 // ============================================================
 // DATE UTILITIES
@@ -124,11 +111,11 @@ export function useSessionExercises(sessionId: string | null, enabled: boolean =
  * Hook to create a new season plan
  */
 export function useCreateSeasonPlan() {
-    const queryClient = useQueryClient();
+    const utils = trpc.useUtils();
 
     return trpc.planner.createSeasonPlan.useMutation({
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: plannerKeys.plans() });
+            utils.planner.getSeasonPlans.invalidate();
         },
     });
 }
@@ -137,12 +124,11 @@ export function useCreateSeasonPlan() {
  * Hook to update a season plan
  */
 export function useUpdateSeasonPlan() {
-    const queryClient = useQueryClient();
+    const utils = trpc.useUtils();
 
     return trpc.planner.updateSeasonPlan.useMutation({
-        onSuccess: (data) => {
-            queryClient.invalidateQueries({ queryKey: plannerKeys.plans() });
-            queryClient.invalidateQueries({ queryKey: plannerKeys.plan(data.id) });
+        onSuccess: () => {
+            utils.planner.getSeasonPlans.invalidate();
         },
     });
 }
@@ -151,13 +137,13 @@ export function useUpdateSeasonPlan() {
  * Hook to delete a season plan
  */
 export function useDeleteSeasonPlan() {
-    const queryClient = useQueryClient();
+    const utils = trpc.useUtils();
 
     return trpc.planner.deleteSeasonPlan.useMutation({
         onSuccess: (_data, planId) => {
-            queryClient.invalidateQueries({ queryKey: plannerKeys.plans() });
+            utils.planner.getSeasonPlans.invalidate();
             if (planId) {
-                queryClient.invalidateQueries({ queryKey: plannerKeys.sessions(planId) });
+                utils.planner.getTrainingSessions.invalidate(planId);
             }
         },
     });
@@ -167,11 +153,11 @@ export function useDeleteSeasonPlan() {
  * Hook to create a training session
  */
 export function useCreateTrainingSession() {
-    const queryClient = useQueryClient();
+    const utils = trpc.useUtils();
 
     return trpc.planner.createTrainingSession.useMutation({
         onSuccess: (data) => {
-            queryClient.invalidateQueries({ queryKey: plannerKeys.sessions(data.plan_id) });
+            utils.planner.getTrainingSessions.invalidate(data.plan_id);
         },
     });
 }
@@ -180,11 +166,11 @@ export function useCreateTrainingSession() {
  * Hook to update a training session
  */
 export function useUpdateTrainingSession() {
-    const queryClient = useQueryClient();
+    const utils = trpc.useUtils();
 
     return trpc.planner.updateTrainingSession.useMutation({
         onSuccess: (data) => {
-            queryClient.invalidateQueries({ queryKey: plannerKeys.sessions(data.plan_id) });
+            utils.planner.getTrainingSessions.invalidate(data.plan_id);
         },
     });
 }
@@ -193,11 +179,11 @@ export function useUpdateTrainingSession() {
  * Hook to delete a training session
  */
 export function useDeleteTrainingSession() {
-    const queryClient = useQueryClient();
+    const utils = trpc.useUtils();
 
     return trpc.planner.deleteTrainingSession.useMutation({
-        onSuccess: (_data, sessionId) => {
-            queryClient.invalidateQueries({ queryKey: plannerKeys.all });
+        onSuccess: () => {
+            utils.planner.invalidate();
         },
     });
 }
@@ -206,11 +192,11 @@ export function useDeleteTrainingSession() {
  * Hook to add an exercise to a training session
  */
 export function useAddExerciseToSession() {
-    const queryClient = useQueryClient();
+    const utils = trpc.useUtils();
 
     return trpc.planner.addExerciseToSession.useMutation({
         onSuccess: (data) => {
-            queryClient.invalidateQueries({ queryKey: plannerKeys.sessionExercises(data.session_id) });
+            utils.planner.getSessionExercises.invalidate(data.session_id);
         },
     });
 }
@@ -219,11 +205,11 @@ export function useAddExerciseToSession() {
  * Hook to remove an exercise from a training session
  */
 export function useRemoveExerciseFromSession() {
-    const queryClient = useQueryClient();
+    const utils = trpc.useUtils();
 
     return trpc.planner.removeExerciseFromSession.useMutation({
-        onSuccess: (_data, sessionExerciseId) => {
-            queryClient.invalidateQueries({ queryKey: plannerKeys.all });
+        onSuccess: () => {
+            utils.planner.invalidate();
         },
     });
 }
@@ -232,7 +218,7 @@ export function useRemoveExerciseFromSession() {
  * Real-time subscription for planner changes
  */
 export function usePlannerRealtime() {
-    const queryClient = useQueryClient();
+    const utils = trpc.useUtils();
 
     const setupSubscription = useCallback(() => {
         const channel = supabase
@@ -241,21 +227,21 @@ export function usePlannerRealtime() {
                 "postgres_changes",
                 { event: "*", schema: "public", table: "season_plans" },
                 () => {
-                    queryClient.invalidateQueries({ queryKey: plannerKeys.plans() });
+                    utils.planner.getSeasonPlans.invalidate();
                 }
             )
             .on(
                 "postgres_changes",
                 { event: "*", schema: "public", table: "training_sessions" },
                 () => {
-                    queryClient.invalidateQueries({ queryKey: plannerKeys.all });
+                    utils.planner.invalidate();
                 }
             )
             .on(
                 "postgres_changes",
                 { event: "*", schema: "public", table: "session_exercises" },
                 () => {
-                    queryClient.invalidateQueries({ queryKey: plannerKeys.all });
+                    utils.planner.invalidate();
                 }
             )
             .subscribe();
@@ -263,7 +249,7 @@ export function usePlannerRealtime() {
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [queryClient]);
+    }, [utils]);
 
     return setupSubscription;
 }

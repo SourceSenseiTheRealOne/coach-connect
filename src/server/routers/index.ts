@@ -16,6 +16,7 @@ import { notificationsRouter } from './notifications';
 import { uploadRouter } from './upload';
 import { clubRouter } from './club';
 import { subscriptionRouter } from './subscription';
+import { settingsRouter } from './settings';
 
 export const appRouter = router({
     auth: authRouter,
@@ -35,6 +36,7 @@ export const appRouter = router({
     upload: uploadRouter,
     club: clubRouter,
     subscription: subscriptionRouter,
+    settings: settingsRouter,
 });
 
 export type AppRouter = typeof appRouter;

@@ -106,11 +106,11 @@ export default function SignupPage() {
       >
         <div className="text-center mb-8">
           <Link to="/" className="inline-flex items-center gap-2.5 mb-6 group">
-            <div className="relative w-10 h-10 rounded-xl bg-gradient-to-br from-primary via-primary to-secondary flex items-center justify-center shadow-[0_8px_24px_-8px_hsl(var(--primary)/0.55)] transition-transform duration-300 group-hover:-rotate-3">
+            <div className="relative w-10 h-10 rounded-xl bg-gradient-to-br from-primary via-primary to-primary/80 flex items-center justify-center shadow-[0_8px_24px_-8px_hsl(var(--primary)/0.55)] transition-transform duration-300 group-hover:-rotate-3">
               <span className="font-display italic font-semibold text-primary-foreground text-base leading-none">
                 cc
               </span>
-              <span className="absolute -right-0.5 -top-0.5 w-1.5 h-1.5 rounded-full bg-secondary ring-2 ring-background" />
+              <span className="absolute -right-0.5 -top-0.5 w-1.5 h-1.5 rounded-full bg-primary/70 ring-2 ring-background" />
             </div>
             <span className="font-display text-xl font-semibold tracking-tight text-foreground leading-none">
               Coach<span className="italic text-primary">Connect</span>

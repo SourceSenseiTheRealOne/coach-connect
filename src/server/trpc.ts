@@ -147,3 +147,21 @@ export const proServiceProcedure = protectedProcedure.use(async ({ ctx, next }) 
     }
     return next();
 });
+
+export const clubLicenseProcedure = protectedProcedure.use(async ({ ctx, next }) => {
+    if (ctx.profile?.user_type !== 'club') {
+        throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: 'This action is only available for club accounts',
+        });
+    }
+
+    if (ctx.profile?.subscription_tier !== 'club_license') {
+        throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: 'This feature requires a Club License subscription',
+        });
+    }
+
+    return next();
+});

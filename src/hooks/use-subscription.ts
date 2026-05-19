@@ -54,6 +54,13 @@ export function useCancelSubscription() {
 }
 
 /**
+ * Hook to create Stripe Billing Portal session
+ */
+export function useCreateBillingPortalSession() {
+    return trpc.subscription.createBillingPortalSession.useMutation();
+}
+
+/**
  * Hook to get Stripe publishable key
  */
 export function useStripePublishableKey() {

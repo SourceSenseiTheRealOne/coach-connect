@@ -64,8 +64,14 @@ export function useUpdateProfile() {
     const utils = trpc.useUtils();
 
     return trpc.profile.update.useMutation({
-        onSuccess: () => {
+        onSuccess: (profile) => {
+            utils.profile.me.setData(undefined, profile);
+            utils.profile.getById.setData(profile.id, profile);
             utils.profile.me.invalidate();
+            utils.profile.getById.invalidate(profile.id);
+            if (profile.username) {
+                utils.profile.getByUsername.invalidate(profile.username);
+            }
         },
     });
 }

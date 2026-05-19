@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Search, Send, Plus, ArrowLeft, Loader2 } from "lucide-react";
+import { Search, Send, Plus, ArrowLeft, Loader2, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useAuth } from "@/lib/auth-context";
@@ -9,6 +9,8 @@ import {
   useSendMessage,
   useCreateConversation,
   useMarkAsRead,
+  useSearchMessagingUsers,
+  useMessagingRealtime,
   formatMessageTime,
   formatConversationTime,
   getInitials,
@@ -22,49 +24,32 @@ import type { Profile } from "@/shared/types";
 function NewConversationDialog({
   open,
   onClose,
-  userId,
 }: {
   open: boolean;
   onClose: (participantId?: string) => void;
-  userId: string;
 }) {
   const [search, setSearch] = useState("");
-  const [searchResults, setSearchResults] = useState<Profile[]>([]);
-  const [searching, setSearching] = useState(false);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const createConversation = useCreateConversation();
 
-  // Search for users
+  // Debounce the search input
   useEffect(() => {
-    if (!search.trim()) {
-      setSearchResults([]);
-      return;
-    }
-
-    const timer = setTimeout(async () => {
-      setSearching(true);
-      try {
-        const { supabase } = await import("@/lib/supabase");
-        const { data, error } = await supabase
-          .from("profiles")
-          .select(
-            "id, username, full_name, avatar_url, user_type, city, country",
-          )
-          .neq("id", userId)
-          .or(`username.ilike.%${search}%,full_name.ilike.%${search}%`)
-          .limit(10);
-
-        if (!error && data) {
-          setSearchResults(data as Profile[]);
-        }
-      } catch {
-        // Ignore search errors
-      } finally {
-        setSearching(false);
-      }
-    }, 300);
-
+    const timer = setTimeout(() => setDebouncedSearch(search), 250);
     return () => clearTimeout(timer);
-  }, [search, userId]);
+  }, [search]);
+
+  // Reset state every time the dialog opens
+  useEffect(() => {
+    if (!open) {
+      setSearch("");
+      setDebouncedSearch("");
+    }
+  }, [open]);
+
+  const searchUsersQuery = useSearchMessagingUsers(debouncedSearch);
+  const searchResults = (searchUsersQuery.data ?? []) as Profile[];
+  const isSearching = searchUsersQuery.isFetching;
+  const hasQuery = debouncedSearch.trim().length >= 2;
 
   const handleStartConversation = async (participantId: string) => {
     try {
@@ -80,22 +65,28 @@ function NewConversationDialog({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
       <motion.div
-        className="glass-card w-full max-w-md mx-4 p-0 overflow-hidden"
+        className="glass-card w-full max-w-md p-0 overflow-hidden rounded-2xl"
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
       >
         <div className="p-4 border-b border-border flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-foreground">
-            New Conversation
-          </h3>
+          <div>
+            <h3 className="text-base font-semibold text-foreground">
+              New conversation
+            </h3>
+            <p className="text-xs text-muted-foreground">
+              Search by name, username, or email
+            </p>
+          </div>
           <button
             onClick={() => onClose()}
-            className="text-muted-foreground hover:text-foreground transition-colors"
+            aria-label="Close"
+            className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded-md"
           >
-            ✕
+            <X size={18} />
           </button>
         </div>
         <div className="p-4">
@@ -105,15 +96,20 @@ function NewConversationDialog({
               className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
             />
             <Input
-              placeholder="Search for coaches..."
+              placeholder="Type a name, @username or email..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-9 bg-muted/40 border-border text-foreground placeholder:text-muted-foreground"
               autoFocus
             />
           </div>
-          <div className="mt-3 max-h-64 overflow-y-auto space-y-1">
-            {searching && (
+          <div className="mt-3 max-h-72 overflow-y-auto space-y-1">
+            {!hasQuery && (
+              <p className="text-xs text-muted-foreground text-center py-6">
+                Enter at least 2 characters to search.
+              </p>
+            )}
+            {hasQuery && isSearching && (
               <div className="flex items-center justify-center py-4">
                 <Loader2
                   size={20}
@@ -121,39 +117,46 @@ function NewConversationDialog({
                 />
               </div>
             )}
-            {!searching && search && searchResults.length === 0 && (
-              <p className="text-sm text-muted-foreground text-center py-4">
-                No users found
+            {hasQuery && !isSearching && searchResults.length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-6">
+                No users matched &quot;{debouncedSearch}&quot;
               </p>
             )}
-            {searchResults.map((user) => (
+            {searchResults.map((u) => (
               <button
-                key={user.id}
-                onClick={() => handleStartConversation(user.id)}
+                key={u.id}
+                onClick={() => handleStartConversation(u.id)}
                 disabled={createConversation.isPending}
-                className="w-full flex items-center gap-3 p-2.5 rounded-lg hover:bg-muted/60 transition-colors text-left"
+                className="w-full flex items-center gap-3 p-2.5 rounded-lg hover:bg-muted/60 transition-colors text-left disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <div className="w-10 h-10 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center shrink-0">
-                  <span className="text-primary text-xs font-semibold">
-                    {user.avatar_url ? (
-                      <img
-                        src={user.avatar_url}
-                        alt=""
-                        className="w-full h-full rounded-full object-cover"
-                      />
-                    ) : (
-                      getInitials(user.full_name || user.username)
-                    )}
-                  </span>
+                <div className="w-10 h-10 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center shrink-0 overflow-hidden">
+                  {u.avatar_url ? (
+                    <img
+                      src={u.avatar_url}
+                      alt=""
+                      className="w-full h-full rounded-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-primary text-xs font-semibold">
+                      {getInitials(u.full_name || u.username)}
+                    </span>
+                  )}
                 </div>
-                <div>
-                  <p className="text-sm font-medium text-foreground">
-                    {user.full_name}
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-foreground truncate">
+                    {u.full_name || u.username}
                   </p>
-                  <p className="text-xs text-muted-foreground">
-                    @{user.username}
+                  <p className="text-xs text-muted-foreground truncate">
+                    @{u.username}
+                    {u.city ? ` · ${u.city}` : ""}
                   </p>
                 </div>
+                {createConversation.isPending && (
+                  <Loader2
+                    size={14}
+                    className="animate-spin text-muted-foreground"
+                  />
+                )}
               </button>
             ))}
           </div>
@@ -183,6 +186,11 @@ export default function MessagesPage() {
   const messagesQuery = useMessages(selectedConversationId);
   const sendMessageMutation = useSendMessage();
   const markAsReadMutation = useMarkAsRead();
+
+  // Real-time subscription: page-wide listener so the conversation list and any
+  // open thread receive new messages instantly. The hook is re-instantiated
+  // when the selected conversation changes so we get a more targeted filter.
+  useMessagingRealtime(selectedConversationId);
 
   const conversations = useMemo(
     () => conversationsQuery.data ?? [],
@@ -241,13 +249,14 @@ export default function MessagesPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Mark as read when selecting a conversation
+  // Mark as read when selecting a conversation, and again whenever new messages
+  // arrive while the conversation is already open (so unread counts stay accurate).
   useEffect(() => {
     if (selectedConversationId) {
       markAsReadMutation.mutate({ conversation_id: selectedConversationId });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedConversationId]);
+  }, [selectedConversationId, messages.length]);
 
   // Handle sending a message
   const handleSend = () => {
@@ -355,6 +364,7 @@ export default function MessagesPage() {
                 id: string;
                 updated_at: string;
                 participants: Profile[];
+                my_last_read_at?: string | null;
                 last_message?: {
                   content: string;
                   created_at: string;
@@ -363,16 +373,27 @@ export default function MessagesPage() {
               }) => {
                 const other = getOtherParticipant(conv);
                 const isSelected = selectedConversationId === conv.id;
+                const lastRead = conv.my_last_read_at
+                  ? new Date(conv.my_last_read_at).getTime()
+                  : 0;
+                const lastMessageAt = conv.last_message
+                  ? new Date(conv.last_message.created_at).getTime()
+                  : 0;
+                const hasUnread =
+                  !!conv.last_message &&
+                  conv.last_message.sender_id !== user?.id &&
+                  lastMessageAt > lastRead &&
+                  !isSelected;
 
                 return (
                   <button
                     key={conv.id}
                     onClick={() => handleSelectConversation(conv.id)}
                     className={`w-full flex items-center gap-3 p-3 text-left transition-colors ${
-                      isSelected ? "bg-secondary" : "hover:bg-muted/60"
+                      isSelected ? "bg-muted" : "hover:bg-muted/60"
                     }`}
                   >
-                    <div className="w-10 h-10 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center shrink-0">
+                    <div className="relative w-10 h-10 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center shrink-0">
                       <span className="text-primary text-xs font-semibold">
                         {other?.avatar_url ? (
                           <img
@@ -386,13 +407,28 @@ export default function MessagesPage() {
                           )
                         )}
                       </span>
+                      {hasUnread && (
+                        <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-primary border-2 border-background" />
+                      )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-foreground truncate">
+                      <div className="flex items-center justify-between gap-2">
+                        <span
+                          className={`text-sm truncate ${
+                            hasUnread
+                              ? "font-semibold text-foreground"
+                              : "font-medium text-foreground"
+                          }`}
+                        >
                           {other?.full_name || other?.username || "Unknown"}
                         </span>
-                        <span className="text-xs text-muted-foreground">
+                        <span
+                          className={`text-xs shrink-0 ${
+                            hasUnread
+                              ? "text-primary font-medium"
+                              : "text-muted-foreground"
+                          }`}
+                        >
                           {conv.last_message
                             ? formatConversationTime(
                                 conv.last_message.created_at,
@@ -400,7 +436,13 @@ export default function MessagesPage() {
                             : formatConversationTime(conv.updated_at)}
                         </span>
                       </div>
-                      <p className="text-xs text-muted-foreground truncate">
+                      <p
+                        className={`text-xs truncate ${
+                          hasUnread
+                            ? "text-foreground font-medium"
+                            : "text-muted-foreground"
+                        }`}
+                      >
                         {conv.last_message?.content || "No messages yet"}
                       </p>
                     </div>
@@ -565,8 +607,24 @@ export default function MessagesPage() {
       {/* New conversation dialog */}
       <NewConversationDialog
         open={showNewConversation}
-        onClose={() => setShowNewConversation(false)}
-        userId={user?.id || ""}
+        onClose={async (participantId) => {
+          setShowNewConversation(false);
+          if (participantId) {
+            // Refresh the conversation list and auto-select the new/existing conversation
+            const { data: refreshed } = await conversationsQuery.refetch();
+            const list = (refreshed ?? []) as Array<{
+              id: string;
+              participants: Profile[];
+            }>;
+            const target = list.find((c) =>
+              c.participants.some((p) => p.id === participantId),
+            );
+            if (target) {
+              setSelectedConversationId(target.id);
+              setShowMobileChat(true);
+            }
+          }
+        }}
       />
     </div>
   );

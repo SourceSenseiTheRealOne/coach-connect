@@ -1,9 +1,10 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { httpBatchLink } from "@trpc/client";
 import { useState } from "react";
 import superjson from "superjson";
 import { trpc } from "./trpc";
 import { getSupabaseClient } from "./supabase";
+import { createQueryClient } from "./react-query";
 
 const TRPC_URL =
   import.meta.env.VITE_TRPC_URL || "http://localhost:3001/api/trpc";
@@ -26,24 +27,7 @@ if (typeof window !== "undefined") {
 }
 
 export function TRPCProvider({ children }: { children: React.ReactNode }) {
-  const [queryClient] = useState(
-    () =>
-      new QueryClient({
-        defaultOptions: {
-          queries: {
-            staleTime: 5 * 60 * 1000, // 5 minutes
-            refetchOnWindowFocus: false,
-            retry: (failureCount, error) => {
-              console.error(
-                `[tRPC] Query failed (attempt ${failureCount}):`,
-                error,
-              );
-              return failureCount < 2;
-            },
-          },
-        },
-      }),
-  );
+  const [queryClient] = useState(() => createQueryClient());
 
   const [trpcClient] = useState(() =>
     trpc.createClient({

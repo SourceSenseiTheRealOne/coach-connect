@@ -2,7 +2,8 @@ import { router, protectedProcedure, publicProcedure } from '../trpc';
 import { TRPCError } from '@trpc/server';
 import { getSupabaseServerClient } from '../../lib/supabase-server';
 import { z } from 'zod';
-import { stripeService, PRICE_IDS } from '../services/stripe';
+import { stripeService } from '../services/stripe';
+import { isSupportedPaidPriceId } from '../../shared/subscription-plans';
 import { env } from '../config/env';
 
 export const subscriptionRouter = router({
@@ -21,7 +22,7 @@ export const subscriptionRouter = router({
             const { priceId } = input;
 
             // Validate price ID
-            if (!Object.values(PRICE_IDS).includes(priceId)) {
+            if (!isSupportedPaidPriceId(priceId)) {
                 throw new TRPCError({
                     code: 'BAD_REQUEST',
                     message: 'Invalid price ID',
@@ -101,6 +102,33 @@ export const subscriptionRouter = router({
                 .eq('id', subscription.id);
 
             return { success: true };
+        }),
+
+    // Create Stripe Billing Portal session
+    createBillingPortalSession: protectedProcedure
+        .mutation(async ({ ctx }) => {
+            const supabase = getSupabaseServerClient();
+
+            const { data: subscription, error } = await supabase
+                .from('subscriptions')
+                .select('*')
+                .eq('user_id', ctx.user.id)
+                .eq('status', 'active')
+                .single();
+
+            if (error || !subscription?.stripe_customer_id) {
+                throw new TRPCError({
+                    code: 'NOT_FOUND',
+                    message: 'No active billing customer found',
+                });
+            }
+
+            const session = await stripeService.createBillingPortalSession({
+                customerId: subscription.stripe_customer_id,
+                returnUrl: `${env.FRONTEND_URL}/dashboard/settings`,
+            });
+
+            return { url: session.url };
         }),
 
     // Get Stripe publishable key

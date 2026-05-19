@@ -66,11 +66,11 @@ export default function Navbar() {
       <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16 sm:h-[72px]">
         {/* Logo lockup */}
         <Link to="/" className="flex items-center gap-2.5 group">
-          <div className="relative w-9 h-9 rounded-xl bg-gradient-to-br from-primary via-primary to-secondary flex items-center justify-center shadow-[0_6px_20px_-6px_hsl(var(--primary)/0.55)] transition-transform duration-300 group-hover:-rotate-3">
+          <div className="relative w-9 h-9 rounded-xl bg-gradient-to-br from-primary via-primary to-primary/80 flex items-center justify-center shadow-[0_6px_20px_-6px_hsl(var(--primary)/0.55)] transition-transform duration-300 group-hover:-rotate-3">
             <span className="font-display italic font-semibold text-primary-foreground text-[15px] leading-none">
               cc
             </span>
-            <span className="absolute -right-0.5 -top-0.5 w-1.5 h-1.5 rounded-full bg-secondary ring-2 ring-background" />
+            <span className="absolute -right-0.5 -top-0.5 w-1.5 h-1.5 rounded-full bg-primary/70 ring-2 ring-background" />
           </div>
           <span className="font-display text-[20px] font-semibold tracking-tight text-foreground leading-none">
             Coach<span className="italic text-primary">Connect</span>

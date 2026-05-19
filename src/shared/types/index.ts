@@ -27,6 +27,11 @@ export interface Profile {
     updated_at: string;
 }
 
+export type PublicProfileSummary = Pick<
+    Profile,
+    'id' | 'username' | 'full_name' | 'avatar_url' | 'user_type' | 'uefa_license' | 'is_verified' | 'city'
+>;
+
 export interface ClubProfile {
     id: string;
     club_name: string;
@@ -103,6 +108,11 @@ export interface Exercise {
     views_count: number;
     created_at: string;
     updated_at: string;
+}
+
+export interface ExerciseWithAuthor extends Exercise {
+    author: PublicProfileSummary | null;
+    isLikedByMe: boolean;
 }
 
 export interface ExerciseReview {
@@ -189,6 +199,11 @@ export interface Post {
     updated_at: string;
 }
 
+export interface PostWithAuthor extends Post {
+    author: PublicProfileSummary | null;
+    isLikedByMe: boolean;
+}
+
 export interface PostComment {
     id: string;
     post_id: string;
@@ -196,6 +211,10 @@ export interface PostComment {
     content: string;
     parent_comment_id: string | null;
     created_at: string;
+}
+
+export interface CommentWithAuthor extends PostComment {
+    author: PublicProfileSummary | null;
 }
 
 export interface Connection {
@@ -251,7 +270,8 @@ export type ApplicationStatus = 'pending' | 'reviewed' | 'accepted' | 'rejected'
 
 export interface JobListing {
     id: string;
-    club_id: string;
+    club_id: string | null;
+    created_by_id: string | null;
     title: string;
     description: string;
     job_type: JobType;
@@ -370,6 +390,9 @@ export type ServiceType =
     | 'other';
 
 export type PriceType = 'fixed' | 'hourly' | 'per_session' | 'contact';
+export type MarketplaceOrderStatus = 'pending' | 'paid' | 'failed' | 'refunded' | 'canceled';
+export type MarketplacePayoutStatus = 'pending' | 'processing' | 'paid' | 'failed';
+export type SellerPayoutMethod = 'iban' | 'bank_transfer';
 
 export interface MarketplaceListing {
     id: string;
@@ -400,6 +423,44 @@ export interface MarketplaceReview {
     created_at: string;
 }
 
+export interface SellerPayoutProfile {
+    user_id: string;
+    account_holder_name: string;
+    payout_method: SellerPayoutMethod;
+    country: string;
+    currency: string;
+    bank_reference: string;
+    bank_reference_last4: string;
+    created_at: string;
+    updated_at: string;
+}
+
+export type SellerPayoutProfileSafe = Omit<SellerPayoutProfile, 'bank_reference'> & {
+    masked_bank_reference: string;
+};
+
+export interface MarketplaceOrder {
+    id: string;
+    listing_id: string | null;
+    buyer_id: string | null;
+    seller_id: string | null;
+    status: MarketplaceOrderStatus;
+    gross_amount_cents: number;
+    platform_fee_cents: number;
+    seller_net_cents: number;
+    currency: string;
+    stripe_checkout_session_id: string | null;
+    stripe_payment_intent_id: string | null;
+    paid_at: string | null;
+    payout_status: MarketplacePayoutStatus;
+    payout_due_at: string | null;
+    payout_processed_at: string | null;
+    payout_reference: string | null;
+    admin_note: string | null;
+    created_at: string;
+    updated_at: string;
+}
+
 // ============================================================
 // NOTIFICATION TYPES
 // ============================================================
@@ -426,6 +487,24 @@ export interface Notification {
     actor_id: string | null;
     is_read: boolean;
     created_at: string;
+}
+
+// ============================================================
+// USER SETTINGS TYPES
+// ============================================================
+
+export type AppLanguage = 'en' | 'fr' | 'es' | 'pt' | 'de';
+
+export interface UserSettings {
+    user_id: string;
+    new_messages: boolean;
+    exercise_likes: boolean;
+    new_followers: boolean;
+    job_opportunities: boolean;
+    platform_updates: boolean;
+    language: AppLanguage;
+    created_at: string;
+    updated_at: string;
 }
 
 // ============================================================

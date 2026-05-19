@@ -11,3 +11,14 @@ coverage
 .DS_Store
 *.md
 !.env.example
+
+.gitnexus
+.claude 
+SKILL.md 
+skills-lock.json
+.agents
+AGENTS.md 
+supabase/.temp
+docs
+*.bak
+.codex-vite-log

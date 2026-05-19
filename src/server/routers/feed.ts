@@ -13,11 +13,12 @@ export const feedRouter = router({
     // List posts
     list: publicProcedure
         .input(listPostsSchema)
-        .query(async ({ input }) => {
+        .query(async ({ ctx, input }) => {
             return posts.list({
                 ...input,
                 page: input.page ?? 1,
                 pageSize: input.pageSize ?? 20,
+                userId: ctx.user?.id,
             });
         }),
 

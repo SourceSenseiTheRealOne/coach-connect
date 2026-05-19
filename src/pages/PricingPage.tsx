@@ -1,9 +1,21 @@
 import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
-import { Check, X, Loader2 } from "lucide-react";
+import { Check, Loader2 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
+import { PRICE_IDS } from "@/shared/subscription-plans";
+
+type PricingPlan = {
+  name: string;
+  price: string;
+  period: string;
+  desc: string;
+  features: string[];
+  cta: string;
+  popular: boolean;
+  priceId: string | null;
+};
 
 export default function PricingPage() {
   const { t } = useTranslation();
@@ -22,7 +34,6 @@ export default function PricingPage() {
         },
         onError: (error) => {
           console.error("Checkout error:", error);
-          // Redirect to login if not authenticated
           if (error.message?.includes("UNAUTHORIZED")) {
             navigate("/login");
           }
@@ -31,91 +42,56 @@ export default function PricingPage() {
     );
   };
 
-  const plans = [
+  const plans: PricingPlan[] = [
     {
       name: t("pricing.plans.free"),
       price: "€0",
       period: t("pricing.period.forever"),
       desc: t("pricing.features.free.desc"),
       features: [
-        { text: t("pricing.features.free.communityFeed"), included: true },
-        { text: t("pricing.features.free.basicTactic"), included: true },
-        { text: t("pricing.features.free.freeExercises"), included: true },
-        { text: t("pricing.features.free.twoWeekPlanner"), included: true },
-        { text: t("pricing.features.free.oneSubmission"), included: true },
-        {
-          text: t("pricing.features.premium.premiumExercises"),
-          included: false,
-        },
-        { text: t("pricing.features.premium.animatedBoard"), included: false },
-        { text: t("pricing.features.premium.verifiedBadge"), included: false },
+        t("pricing.features.free.communityFeed"),
+        t("pricing.features.free.basicTactic"),
+        t("pricing.features.free.freeExercises"),
       ],
       cta: t("pricing.cta.startFree"),
       popular: false,
       priceId: null,
     },
     {
-      name: "Pro Service",
-      price: "€9.99",
-      period: t("pricing.period.month"),
-      desc: t("pricing.features.premium.desc"),
-      features: [
-        { text: t("pricing.features.premium.everythingFree"), included: true },
-        {
-          text: t("pricing.features.premium.premiumExercises"),
-          included: true,
-        },
-        { text: t("pricing.features.premium.fullPlanner"), included: true },
-        { text: t("pricing.features.premium.animatedBoard"), included: true },
-        {
-          text: t("pricing.features.premium.unlimitedSubmissions"),
-          included: true,
-        },
-        { text: t("pricing.features.premium.verifiedBadge"), included: true },
-        { text: t("pricing.features.premium.calendarAccess"), included: true },
-        { text: t("pricing.features.premium.matchMaker"), included: true },
-      ],
-      cta: t("pricing.cta.goPremium"),
-      popular: true,
-      priceId: "price_1TRZLgHWoHwKWIEOGA0VcMdu",
-    },
-    {
       name: t("pricing.plans.pro"),
-      price: "€12.99",
+      price: "€9.99",
       period: t("pricing.period.month"),
       desc: t("pricing.features.pro.desc"),
       features: [
-        { text: t("pricing.features.pro.everythingPremium"), included: true },
-        { text: t("pricing.features.pro.marketplaceListing"), included: true },
-        { text: t("pricing.features.pro.profileAnalytics"), included: true },
-        { text: t("pricing.features.pro.featuredProfile"), included: true },
-        { text: t("pricing.features.pro.prioritySupport"), included: true },
-        { text: t("pricing.features.club.subAccounts"), included: false },
-        { text: t("pricing.features.club.postVacancies"), included: false },
-        { text: t("pricing.features.club.clubTools"), included: false },
+        t("pricing.features.premium.everythingFree"),
+        t("pricing.features.premium.premiumExercises"),
+        t("pricing.features.pro.marketplaceListing"),
+        t("pricing.features.pro.profileTier", {
+          defaultValue: "Pro Service profile tier",
+        }),
       ],
       cta: t("pricing.cta.goPro"),
-      popular: false,
-      priceId: null,
+      popular: true,
+      priceId: PRICE_IDS.PRO_SERVICE,
     },
     {
-      name: "Club License",
+      name: t("pricing.plans.club"),
       price: "€29.99",
       period: t("pricing.period.month"),
       desc: t("pricing.features.club.desc"),
       features: [
-        { text: t("pricing.features.club.everythingPremium"), included: true },
-        { text: t("pricing.features.club.subAccounts"), included: true },
-        { text: t("pricing.features.club.clubTools"), included: true },
-        { text: t("pricing.features.club.postVacancies"), included: true },
-        { text: t("pricing.features.club.webshopLink"), included: true },
-        { text: t("pricing.features.pro.profileAnalytics"), included: true },
-        { text: t("pricing.features.pro.prioritySupport"), included: true },
-        { text: "Custom branding", included: true },
+        t("pricing.features.club.everythingPro", {
+          defaultValue: "Everything in Pro Service",
+        }),
+        t("pricing.features.club.postVacancies"),
+        t("pricing.features.pro.marketplaceListing"),
+        t("pricing.features.club.profileTier", {
+          defaultValue: "Club License profile tier",
+        }),
       ],
       cta: t("pricing.cta.getLicense"),
       popular: false,
-      priceId: "price_1TRZLhHWoHwKWIEOx71Pf3Wk",
+      priceId: PRICE_IDS.CLUB_LICENSE,
     },
   ];
 
@@ -139,7 +115,7 @@ export default function PricingPage() {
           </p>
         </motion.div>
 
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
           {plans.map((plan, i) => (
             <motion.div
               key={plan.name}
@@ -170,37 +146,24 @@ export default function PricingPage() {
               <p className="text-sm text-muted-foreground mb-6">{plan.desc}</p>
 
               <div className="space-y-3 flex-1 mb-6">
-                {plan.features.map((f) => (
-                  <div key={f.text} className="flex items-center gap-2 text-sm">
-                    {f.included ? (
-                      <Check size={16} className="text-primary shrink-0" />
-                    ) : (
-                      <X
-                        size={16}
-                        className="text-muted-foreground/40 shrink-0"
-                      />
-                    )}
-                    <span
-                      className={
-                        f.included
-                          ? "text-foreground"
-                          : "text-muted-foreground/40"
-                      }
-                    >
-                      {f.text}
-                    </span>
+                {plan.features.map((feature) => (
+                  <div key={feature} className="flex items-center gap-2 text-sm">
+                    <Check size={16} className="text-primary shrink-0" />
+                    <span className="text-foreground">{feature}</span>
                   </div>
                 ))}
               </div>
 
               {plan.priceId ? (
                 <Button
-                  onClick={() => handleSubscribe(plan.priceId!)}
+                  onClick={() => {
+                    if (plan.priceId) handleSubscribe(plan.priceId);
+                  }}
                   disabled={isPending}
                   className={`w-full ${
                     plan.popular
                       ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                      : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                      : "border border-border bg-background text-foreground hover:bg-muted/70"
                   }`}
                 >
                   {isPending ? (
@@ -214,7 +177,7 @@ export default function PricingPage() {
                     className={`w-full ${
                       plan.popular
                         ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                        : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                        : "border border-border bg-background text-foreground hover:bg-muted/70"
                     }`}
                   >
                     {plan.cta}

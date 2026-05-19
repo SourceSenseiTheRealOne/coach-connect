@@ -123,11 +123,6 @@ function ExerciseDetailModal({
     : "";
 
   const handleLike = () => {
-    console.log("ExerciseDetailModal handleLike called:", {
-      userId: user?.id,
-      exerciseId: exercise.id,
-      isLikedByMe: exercise.isLikedByMe,
-    });
     if (!user) {
       toast({
         title: "Please log in to like exercises",
@@ -557,11 +552,6 @@ function ExerciseCard({
 
   const handleLike = (e: React.MouseEvent) => {
     e.stopPropagation();
-    console.log("ExerciseCard handleLike called:", {
-      userId: user?.id,
-      exerciseId: exercise.id,
-      isLikedByMe: exercise.isLikedByMe,
-    });
     if (!user) {
       toast({
         title: "Please log in to like exercises",
@@ -727,6 +717,14 @@ export default function ExercisesPage() {
     const cleanup = setupRealtime();
     return cleanup;
   }, [setupRealtime]);
+
+  useEffect(() => {
+    if (!selectedExercise || !exercises) return;
+    const updated = exercises.find((exercise) => exercise.id === selectedExercise.id);
+    if (updated && updated !== selectedExercise) {
+      setSelectedExercise(updated);
+    }
+  }, [exercises, selectedExercise]);
 
   return (
     <div className="space-y-6">

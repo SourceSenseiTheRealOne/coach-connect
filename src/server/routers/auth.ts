@@ -5,6 +5,7 @@ import {
     resetPasswordSchema,
     updatePasswordSchema,
     oauthSchema,
+    deleteAccountSchema,
 } from '../../shared/validators';
 import { TRPCError } from '@trpc/server';
 import { getSupabaseServerClient } from '../../lib/supabase-server';
@@ -69,6 +70,7 @@ export const authRouter = router({
                     full_name,
                     user_type,
                     country: 'Portugal',
+                    subscription_tier: 'free',
                 });
 
             if (profileError) {
@@ -143,6 +145,29 @@ export const authRouter = router({
                     message: 'Failed to sign out',
                 });
             }
+
+            return { success: true };
+        }),
+
+    // Delete current user account
+    deleteAccount: protectedProcedure
+        .input(deleteAccountSchema)
+        .mutation(async ({ ctx }) => {
+            const supabase = getSupabaseServerClient();
+
+            const { error } = await supabase.auth.admin.deleteUser(ctx.user.id);
+
+            if (error) {
+                throw new TRPCError({
+                    code: 'INTERNAL_SERVER_ERROR',
+                    message: error.message || 'Failed to delete account',
+                });
+            }
+
+            await supabase
+                .from('profiles')
+                .delete()
+                .eq('id', ctx.user.id);
 
             return { success: true };
         }),
